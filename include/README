@@ -1,6 +1,0 @@
-Este diretório destina-se a arquivos de cabeçalho de projetos.
-
-Um arquivo de cabeçalho é um arquivo que contém declarações C e definições de macros
-para serem compartilhadas entre vários arquivos de código-fonte do projeto. Você solicita o uso de um
-arquivo de cabeçalho em seu arquivo de código-fonte (C, C++, etc.) localizado na pasta `src`
-incluindo-o com a diretiva de pré-processamento C `#include`.
