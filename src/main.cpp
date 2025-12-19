@@ -24,13 +24,18 @@ portMUX_TYPE tasks_alive_mux = portMUX_INITIALIZER_UNLOCKED;
 const TickType_t ticks_to_sleep = pdMS_TO_TICKS(SLEEP_TIMEOUT_MS);
 
 TaskHandle_t TaskDisplay;
+TaskHandle_t TaskNetwork;
 
 camera_config_t camera_config;
 
 // Biblioteca TFT_eSPI de Bodmer
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite spr = TFT_eSprite(&tft);
-uint16_t *spr_pixel_buffer; // Buffer de pixels do sprite, destino da imagem da câmera
+uint16_t *spr_pixel_buffer; // Buffer de pixels do SPRITE. O sprite é exibido no display a cada iteração do loop da Task.
+
+QueueHandle_t messageQueue = xQueueCreate(
+    3, // até 3 mensagens
+    DISPLAY_MSG_MAX_LEN);
 
 // Interrupt Service Routine (ISR) para detectar borda de descida no sinal do PIR
 void IRAM_ATTR handlePIRInterrupt()
@@ -62,7 +67,7 @@ void setupSprite()
 }
 
 // Função para exibir texto no sprite
-void showText(const String &text, bool clearBackground = false, bool pushToDisplay = true)
+void showText(const char *text, bool clearBackground = false, bool pushToDisplay = true)
 {
     if (clearBackground)
     {
@@ -110,12 +115,19 @@ void setupCamera()
 bool startCamera()
 {
     short int retry_count = 0;
+    char msg[DISPLAY_MSG_MAX_LEN];
 
     while (esp_camera_init(&camera_config) != ESP_OK)
     {
         retry_count++;
 
-        showText("Falha ao iniciar câmera! Tentando novamente... (" + String(retry_count) + "/5)", true);
+        snprintf(
+            msg,
+            DISPLAY_MSG_MAX_LEN,
+            "Falha ao iniciar camera! Tentando novamente... (%d/5)",
+            retry_count);
+
+        showText(msg, true);
 
         if (retry_count > 5)
         {
@@ -128,6 +140,20 @@ bool startCamera()
     return true;
 }
 
+bool sendDisplayMessage(const char *text, TickType_t timeout)
+{
+    if (should_sleep_flag || !messageQueue)
+    {
+        return false;
+    }
+
+    char buf[DISPLAY_MSG_MAX_LEN];
+    strncpy(buf, text, DISPLAY_MSG_MAX_LEN - 1);
+    buf[DISPLAY_MSG_MAX_LEN - 1] = '\0';
+
+    return xQueueSend(messageQueue, buf, timeout) == pdTRUE;
+}
+
 __attribute__((noreturn)) void sleep()
 {
     esp_camera_deinit();
@@ -137,32 +163,71 @@ __attribute__((noreturn)) void sleep()
     esp_deep_sleep_start();
 }
 
+void changeAliveTaskCount(int delta)
+{
+    portENTER_CRITICAL(&tasks_alive_mux);
+    tasks_alive = tasks_alive + delta;
+    portEXIT_CRITICAL(&tasks_alive_mux);
+}
+
+void TaskNetworkCode(void *pvParameters)
+{
+    changeAliveTaskCount(1);
+
+    while (!should_sleep_flag)
+    {
+        sendDisplayMessage("TESTE", pdMS_TO_TICKS(100));
+        vTaskDelay(pdMS_TO_TICKS(5000));
+    }
+
+    changeAliveTaskCount(-1);
+    vTaskDelete(nullptr);
+}
+
 void TaskDisplayCode(void *pvParameters)
 {
-    tasks_alive = tasks_alive + 1;
+    changeAliveTaskCount(1);
 
-    while (should_sleep_flag == false)
+    char overlayMsg[DISPLAY_MSG_MAX_LEN];
+    bool overlayActive = false;
+    TickType_t overlayUntil = 0;
+
+    while (!should_sleep_flag)
     {
         camera_fb_t *fb = esp_camera_fb_get();
-
         if (!fb)
         {
             vTaskDelay(pdMS_TO_TICKS(10));
             continue;
         }
 
-        memcpy(spr_pixel_buffer, fb->buf, DISPLAY_HEIGHT * DISPLAY_WIDTH * 2);
+        memcpy(spr_pixel_buffer, fb->buf, DISPLAY_WIDTH * DISPLAY_HEIGHT * 2);
         esp_camera_fb_return(fb);
+
+        if (xQueueReceive(messageQueue, overlayMsg, 0) == pdTRUE)
+        {
+            overlayActive = true;
+            overlayUntil = xTaskGetTickCount() + pdMS_TO_TICKS(MESSAGE_DISPLAY_DURATION_MS);
+        }
+
+        if (overlayActive)
+        {
+            if (xTaskGetTickCount() > overlayUntil)
+            {
+                overlayActive = false;
+            }
+            else
+            {
+                showText(overlayMsg, false, false);
+            }
+        }
 
         spr.pushSprite(0, 0);
 
         vTaskDelay(pdMS_TO_TICKS(10));
     }
 
-    portENTER_CRITICAL(&tasks_alive_mux);
-    tasks_alive = tasks_alive - 1;
-    portEXIT_CRITICAL(&tasks_alive_mux);
-
+    changeAliveTaskCount(-1);
     vTaskDelete(nullptr);
 }
 
@@ -204,6 +269,15 @@ void setup()
         1,
         &TaskDisplay,
         APP_CPU_NUM);
+
+    xTaskCreatePinnedToCore(
+        TaskNetworkCode,
+        "TaskNetwork",
+        4096,
+        nullptr,
+        1,
+        &TaskNetwork,
+        PRO_CPU_NUM);
 }
 
 // FREERTOS cria loopTask automaticamente, no CORE 1
