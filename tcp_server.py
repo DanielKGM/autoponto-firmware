@@ -1,66 +1,38 @@
 import socket
-import struct
 import cv2
 import numpy as np
 
-HOST = "0.0.0.0"
-PORT = 9000
-
-def recv_exact(sock, size):
-    data = b''
-    while len(data) < size:
-        chunk = sock.recv(size - len(data))
-        if not chunk:
-            return None
-        data += chunk
-    return data
-
-print("=== TCP CAMERA VIEWER ===")
-print("Aguardando conexão...")
-
-with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    s.bind((HOST, PORT))
+def main():
+    s = socket.socket()
+    s.bind(("0.0.0.0", 5000))
     s.listen(1)
 
-    conn, addr = s.accept()
-    print(f"Conectado: {addr}")
+    print("Aguardando ESP32...")
+    conn, _ = s.accept()
 
-    with conn:
-        while True:
-            # 1) recebe tamanho do frame
-            header = recv_exact(conn, 4)
-            if not header:
-                break
+    buffer = b''
 
-            (length,) = struct.unpack("<I", header)
+    while True:
+        data = conn.recv(4096)
+        if not data:
+            break
 
-            # sanity check
-            if length < 100 or length > 300_000:
-                print(f"Tamanho inválido: {length}")
-                break
+        buffer += data
 
-            # 2) recebe JPEG
-            jpeg_data = recv_exact(conn, length)
-            if not jpeg_data:
-                break
+        # JPEG termina com FFD9
+        end = buffer.find(b'\xff\xd9')
+        if end != -1:
+            jpg = buffer[:end+2]
+            buffer = buffer[end+2:]
 
-            print(f"JPEG recebido: {length} bytes")
+            img = cv2.imdecode(
+                np.frombuffer(jpg, dtype=np.uint8),
+                cv2.IMREAD_COLOR
+            )
 
-            # 3) decodifica JPEG -> imagem
-            jpg_array = np.frombuffer(jpeg_data, dtype=np.uint8)
-            frame = cv2.imdecode(jpg_array, cv2.IMREAD_COLOR)
+            if img is not None:
+                cv2.imshow("ESP32", img)
+                cv2.waitKey(1)
 
-            if frame is None:
-                print("Erro ao decodificar JPEG")
-                continue
-
-            # 4) exibe
-            cv2.imshow("ESP32 Camera", frame)
-
-            # ESC para sair
-            if cv2.waitKey(1) & 0xFF == 27:
-                break
-
-cv2.destroyAllWindows()
-print("Encerrado")
+if __name__ == "__main__":
+    main()

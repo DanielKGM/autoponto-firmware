@@ -1,6 +1,8 @@
-// DRIVER ESP32 CAM
 #include "esp_camera.h"
 #include "Arduino.h"
+
+#include <WiFi.h>
+#include <EEPROM.h> // SALVAR DADOS PRÉ-DEEP SLEEP
 
 // RISCO DE BROWNOUT
 #include "soc/soc.h"
@@ -9,12 +11,12 @@
 #include "soc/rtc_cntl_reg.h"
 #include "driver/rtc_io.h"
 
-#include <EEPROM.h>
 #include <TFT_eSPI.h>
 #include <SPI.h>
 
 #include "Camera_Setup.h"
 #include "System_Setup.h"
+#include "Secrets.h"
 
 volatile bool should_sleep_flag = false;
 volatile TickType_t last_PIR_tick = 0;
@@ -27,6 +29,7 @@ TaskHandle_t TaskDisplay;
 TaskHandle_t TaskNetwork;
 
 camera_config_t camera_config;
+WiFiClient client;
 
 // Biblioteca TFT_eSPI de Bodmer
 TFT_eSPI tft = TFT_eSPI();
@@ -58,11 +61,10 @@ void setupSprite()
     spr.fillScreen(TFT_BLACK);
     spr.setRotation(0);
     spr.setSwapBytes(true);
-    spr.setCursor(0, 0);
     spr.setTextColor(TFT_WHITE, TFT_BLACK); // Cor do texto: branco, fundo preto
     spr.setTextDatum(MC_DATUM);             // Centraliza o texto
     spr.setTextFont(2);                     // Define a fonte do texto
-    spr.setTextSize(2);                     // Define o tamanho do texto
+    spr.setTextSize(1);                     // Define o tamanho do texto
     spr.setTextWrap(true, false);           // Habilita quebra de linha automática horizontal
 }
 
@@ -74,7 +76,7 @@ void showText(const char *text, bool clearBackground = false, bool pushToDisplay
         spr.fillScreen(TFT_BLACK);
     }
 
-    spr.drawString(text, DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2, 2);
+    tft.drawString(text, DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2);
 
     if (pushToDisplay)
     {
@@ -131,16 +133,17 @@ bool startCamera()
 
         if (retry_count > 5)
         {
+            showText("Falha ao iniciar camera! Reinicie o dispositivo.", true);
             return false;
         }
 
-        vTaskDelay(pdMS_TO_TICKS(1000)); // Talvez conflito?
+        vTaskDelay(pdMS_TO_TICKS(2000));
     }
 
     return true;
 }
 
-bool sendDisplayMessage(const char *text, TickType_t timeout)
+bool sendDisplayMessage(const char *text, TickType_t timeout = 0)
 {
     if (should_sleep_flag || !messageQueue)
     {
@@ -170,14 +173,110 @@ void changeAliveTaskCount(int delta)
     portEXIT_CRITICAL(&tasks_alive_mux);
 }
 
+bool connectNetwork()
+{
+    sendDisplayMessage("Conectando ao WiFi...");
+    WiFi.begin(WIFI_SSID, WIFI_PASS);
+
+    const auto ticks_to_conn_wifi = pdMS_TO_TICKS(WIFI_CONNECT_TIMEOUT_MS);
+    TickType_t wifiStart = xTaskGetTickCount();
+
+    while (WiFiClass::status() != WL_CONNECTED)
+    {
+        if (xTaskGetTickCount() - wifiStart > ticks_to_conn_wifi)
+        {
+            sendDisplayMessage("Tempo limite de Conexão WiFi Atingido");
+            return false;
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(CONN_RETRY_INTERVAL_MS));
+    }
+
+    return true;
+}
+
+bool connectServer()
+{
+    sendDisplayMessage("Conectando ao Servidor...");
+    client.connect(SERVER_IP, SERVER_PORT);
+
+    const auto ticks_to_conn_server = pdMS_TO_TICKS(SERVER_CONNECT_TIMEOUT_MS);
+    TickType_t serverStart = xTaskGetTickCount();
+
+    while (!client.connected())
+    {
+        if (xTaskGetTickCount() - serverStart > ticks_to_conn_server)
+        {
+            sendDisplayMessage("Tempo limite de Conexão Servidor Atingido");
+            return false;
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(CONN_RETRY_INTERVAL_MS));
+    }
+    return true;
+}
+
+bool sendFrame()
+{
+    camera_fb_t *fb = esp_camera_fb_get();
+    if (!fb)
+    {
+        return false;
+    }
+
+    uint8_t *jpg_buf = nullptr;
+    size_t jpg_len = 0;
+
+    bool ok = fmt2jpg(
+        fb->buf,
+        fb->len,
+        fb->width,
+        fb->height,
+        PIXFORMAT_RGB565,
+        JPEG_QUALITY,
+        &jpg_buf,
+        &jpg_len);
+
+    esp_camera_fb_return(fb);
+
+    if (!ok || !jpg_buf || jpg_len == 0)
+    {
+        return false;
+    }
+
+    uint32_t len = htonl(jpg_len);
+    if (client.write((uint8_t *)&len, sizeof(len)) != sizeof(len))
+    {
+        free(jpg_buf);
+        return false;
+    }
+
+    size_t sent = 0;
+    while (sent < jpg_len)
+    {
+        sent += client.write(jpg_buf + sent, jpg_len - sent);
+    }
+
+    free(jpg_buf);
+    return true;
+}
+
 void TaskNetworkCode(void *pvParameters)
 {
     changeAliveTaskCount(1);
 
+    const auto ticks_to_send = pdMS_TO_TICKS(DATA_SEND_INTERVAL_MS);
+
+    vTaskDelay(ticks_to_send);
+
+    should_sleep_flag = !connectNetwork();
+    should_sleep_flag = !connectServer();
+
     while (!should_sleep_flag)
     {
-        sendDisplayMessage("TESTE", pdMS_TO_TICKS(100));
-        vTaskDelay(pdMS_TO_TICKS(5000));
+        // sendFrame();
+        sendDisplayMessage("ENVIADO");
+        vTaskDelay(ticks_to_send);
     }
 
     changeAliveTaskCount(-1);
@@ -195,6 +294,7 @@ void TaskDisplayCode(void *pvParameters)
     while (!should_sleep_flag)
     {
         camera_fb_t *fb = esp_camera_fb_get();
+
         if (!fb)
         {
             vTaskDelay(pdMS_TO_TICKS(10));
@@ -223,7 +323,6 @@ void TaskDisplayCode(void *pvParameters)
         }
 
         spr.pushSprite(0, 0);
-
         vTaskDelay(pdMS_TO_TICKS(10));
     }
 
@@ -243,7 +342,7 @@ void setup()
     digitalWrite(DISPLAY_ENABLE_PIN, HIGH);
 
     // Configuração da interrupção do PIR
-    attachInterrupt(digitalPinToInterrupt(PIR_PIN), handlePIRInterrupt, RISING);
+    attachInterrupt(digitalPinToInterrupt(PIR_PIN), handlePIRInterrupt, FALLING);
 
     // Configuração para o wakeup
     esp_sleep_enable_ext0_wakeup((gpio_num_t)PIR_PIN, 1);
@@ -253,7 +352,7 @@ void setup()
     setupTFT();
     setupSprite();
 
-    showText("Carregando...", true);
+    showText("Carregando...");
 
     setupCamera();
 
