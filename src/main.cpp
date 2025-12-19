@@ -234,6 +234,7 @@ void TaskDisplayCode(void *pvParameters)
 void setup()
 {
     WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+    last_PIR_tick = xTaskGetTickCount();
 
     // Configuração dos pinos
     pinMode(DISPLAY_ENABLE_PIN, OUTPUT);
@@ -299,5 +300,5 @@ void loop()
         sleep();
     }
 
-    vTaskDelay(1);
+    vTaskDelay(pdMS_TO_TICKS(100));
 }
