@@ -1,29 +1,12 @@
-// =======================================================
-//  CONFIGURAÇÕES DO SISTEMA
-// =======================================================
-
-
-// =======================================================
-//  PINOS DO PROTÓTIPO
-// =======================================================
 // Sensor de presença (PIR)
-#define PIR               33
+#define PIR_PIN 33
+#define SLEEP_TIMEOUT_MS 15000 // Tempo sem detecção PIR para entrar em deep sleep (15 segundos)
 
-// Buzzer sonoro
-#define POSITIVE_FEEDBACK            3
+// Configurações do display TFT
+#define DISPLAY_ENABLE_PIN 1 // Pino para ativar/desativar transistor associado ao display
+#define DISPLAY_WIDTH 240    // Largura do display em pixels
+#define DISPLAY_HEIGHT 320   // Altura do display em pixels
 
-// Base do Transistor NPN de habilitação do Display (liga/desliga)
-#define DISPLAY_ENABLE    1
-
-
-// =======================================================
-//  CONFIGURAÇÕES DE TEMPO (milissegundos)
-// =======================================================
-// Intervalo mínimo entre ativações do buzzer
-#define BUZZER_INTERVAL_MS 10000   // 10 segundos
-
-// Tempo que o buzzer permanece ligado
-#define BUZZER_ON_TIME_MS  2000    // 2 segundos
-
-// Tempo para desligar o display por inatividade
-#define DISPLAY_TIMEOUT_MS 15000   // 15 segundos
+// Feedback positivo
+#define POSITIVE_FB_PIN 3 // Liga o buzzer ativo e o LED indicador
+#define POSITIVE_FB_DURATION_MS 500

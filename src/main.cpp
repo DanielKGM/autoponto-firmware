@@ -1,219 +1,229 @@
+// DRIVER ESP32 CAM
 #include "esp_camera.h"
 #include "Arduino.h"
-#include "soc/soc.h"           // Disable brownout problems
-#include "soc/rtc_cntl_reg.h"  // Disable brownout problems
+
+// RISCO DE BROWNOUT
+#include "soc/soc.h"
+
+// RTC para DEEP SLEEP
+#include "soc/rtc_cntl_reg.h"
 #include "driver/rtc_io.h"
-#include <EEPROM.h>            // read and write from flash memory
-#include <TFT_eSPI.h>          // Hardware-specific library
+
+#include <EEPROM.h>
+#include <TFT_eSPI.h>
 #include <SPI.h>
-#include "User_Setup.h"
+
 #include "Camera_Setup.h"
 #include "System_Setup.h"
 
-// 1. TEMPO DE EXIBIÇÃO E VARIÁVEIS DE CONTROLE
 volatile bool should_sleep_flag = false;
-volatile unsigned long next_sleep_time = 0; 
-// Não precisamos do pirMux e da ISR complexa se monitorarmos o PIR na Task
-// Vamos usar uma flag simples para checar se a Task deve reiniciar o timer
-volatile bool pir_event_flag = false; 
+volatile TickType_t last_PIR_tick = 0;
+volatile bool PIR_triggered = false;
+volatile int tasks_alive = 0;
+portMUX_TYPE tasks_alive_mux = portMUX_INITIALIZER_UNLOCKED;
+const TickType_t ticks_to_sleep = pdMS_TO_TICKS(SLEEP_TIMEOUT_MS);
 
-TaskHandle_t Task1;
+TaskHandle_t TaskDisplay;
+
+camera_config_t camera_config;
+
+// Biblioteca TFT_eSPI de Bodmer
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite spr = TFT_eSprite(&tft);
-camera_config_t config;
-uint16_t *scr;
+uint16_t *spr_pixel_buffer; // Buffer de pixels do sprite, destino da imagem da câmera
 
-// 2. INTERRUPT SERVICE ROUTINE (ISR) SIMPLIFICADA
-// A ISR apenas informa à Task1code que houve um evento no pino PIR.
-void IRAM_ATTR handlePIRInterrupt() {
-  pir_event_flag = true;
+// Interrupt Service Routine (ISR) para detectar borda de descida no sinal do PIR
+void IRAM_ATTR handlePIRInterrupt()
+{
+    PIR_triggered = true;
 }
 
-void Task1code( void * pvParameters ) {
-  // Inicialização do Display (Deve ser a primeira coisa)
-  tft.init();
-  tft.setRotation(1);
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_WHITE, TFT_BLACK); // Alterado para branco no fundo preto para melhor visibilidade
-  tft.setTextDatum(MC_DATUM); // Centraliza texto
-  scr = (uint16_t*)spr.createSprite(240, 240);
-  spr.setTextDatum(MC_DATUM); 
-  spr.setSwapBytes(true);
-
-  // Configuração da Câmera (mantida)
-  config.ledc_channel = LEDC_CHANNEL_0;
-  config.ledc_timer = LEDC_TIMER_0;
-  config.pin_d0 = Y2_GPIO_NUM;
-  config.pin_d1 = Y3_GPIO_NUM;
-  config.pin_d2 = Y4_GPIO_NUM;
-  config.pin_d3 = Y5_GPIO_NUM;
-  config.pin_d4 = Y6_GPIO_NUM;
-  config.pin_d5 = Y7_GPIO_NUM;
-  config.pin_d6 = Y8_GPIO_NUM;
-  config.pin_d7 = Y9_GPIO_NUM;
-  config.pin_xclk = XCLK_GPIO_NUM;
-  config.pin_pclk = PCLK_GPIO_NUM;
-  config.pin_vsync = VSYNC_GPIO_NUM;
-  config.pin_href = HREF_GPIO_NUM;
-  config.pin_sscb_sda = SIOD_GPIO_NUM;
-  config.pin_sscb_scl = SIOC_GPIO_NUM;
-  config.pin_pwdn = PWDN_GPIO_NUM;
-  config.pin_reset = RESET_GPIO_NUM;
-  config.xclk_freq_hz = 20000000;
-  config.frame_size = FRAMESIZE_240X240;
-  config.pixel_format = PIXFORMAT_RGB565;
-  config.grab_mode = CAMERA_GRAB_LATEST;
-  config.fb_location = CAMERA_FB_IN_PSRAM;
-  config.jpeg_quality = 10;
-  config.fb_count = 2;
-
-  // 2. LÓGICA DE RESET DE HARDWARE ANTES DA INICIALIZAÇÃO
-  if (config.pin_pwdn != -1) {
-    pinMode(config.pin_pwdn, OUTPUT);
-    digitalWrite(config.pin_pwdn, LOW); 
-  }
-  if (config.pin_reset != -1) {
-    pinMode(config.pin_reset, OUTPUT);
-    digitalWrite(config.pin_reset, LOW);
-    delay(10);
-    digitalWrite(config.pin_reset, HIGH); 
-    delay(10);
-  }
-
-  // Inicialização da Câmera
-  esp_err_t err = esp_camera_init(&config);
-  if (err != ESP_OK) {
-    tft.drawString("Camera FAILED", 120, 120, 2); 
-    vTaskDelete(NULL);
-    return;
-  }
-
-  tft.drawString("Loading...", 120, 120, 2);
-
-  // 3. LOOP DE CAPTURA COM LÓGICA DE TEMPO E EXIBIÇÃO
-  while (!should_sleep_flag) {
-    
-    // 3A. VERIFICAÇÃO E RENOVAÇÃO DO TIMER
-    
-    // Leitura do pino PIR (feita com segurança na Task)
-    bool pir_is_high = digitalRead(PIR);
-    
-    // Se o PIR estiver em HIGH, REINICIA O TIMER
-    if (pir_is_high) {
-        next_sleep_time = millis() + DISPLAY_TIMEOUT_MS;
-    }
-
-    // CÁLCULO DE TEMPO RESTANTE
-    unsigned long time_left = 0;
-    if (next_sleep_time < millis()) {
-      should_sleep_flag = true; 
-      continue;
-    }
-    
-    // 3B. CAPTURA E PROCESSAMENTO DA IMAGEM
-    camera_fb_t  * fb = esp_camera_fb_get();
-
-    if (!fb) {
-      vTaskDelay(pdMS_TO_TICKS(50)); 
-      continue;
-    }
-
-    memcpy(scr, fb->buf, 57600 * 2); 
-    
-    spr.pushSprite(0, 0); 
-    
-    esp_camera_fb_return(fb); 
-    vTaskDelay(pdMS_TO_TICKS(50)); 
-  }
-  
-  // 4. LIMPEZA (CLEANUP)
-  esp_camera_deinit();
-  vTaskDelete(NULL); 
+// Configuração do display TFT
+void setupTFT()
+{
+    tft.init();
+    tft.setRotation(0);
+    tft.fillScreen(TFT_BLACK);
 }
 
-void TaskBuzzerCode(void * pvParameters) {
+// Configuração do sprite
+void setupSprite()
+{
+    spr_pixel_buffer = (uint16_t *)spr.createSprite(DISPLAY_WIDTH, DISPLAY_HEIGHT);
+    spr.fillScreen(TFT_BLACK);
+    spr.setRotation(0);
+    spr.setSwapBytes(true);
+    spr.setCursor(0, 0);
+    spr.setTextColor(TFT_WHITE, TFT_BLACK); // Cor do texto: branco, fundo preto
+    spr.setTextDatum(MC_DATUM);             // Centraliza o texto
+    spr.setTextFont(2);                     // Define a fonte do texto
+    spr.setTextSize(2);                     // Define o tamanho do texto
+    spr.setTextWrap(true, false);           // Habilita quebra de linha automática horizontal
+}
 
-  unsigned long lastBuzz = millis();
-
-  while (!should_sleep_flag) {
-
-    unsigned long now = millis();
-
-    // Verifica se passaram 10 segundos
-    if (now - lastBuzz >= BUZZER_INTERVAL_MS) {
-      lastBuzz = now;
-
-      // Liga o buzzer
-      digitalWrite(POSITIVE_FEEDBACK, HIGH);
-      vTaskDelay(pdMS_TO_TICKS(BUZZER_ON_TIME_MS));
-      digitalWrite(POSITIVE_FEEDBACK, LOW);
+// Função para exibir texto no sprite
+void showText(const String &text, bool clearBackground = false, bool pushToDisplay = true)
+{
+    if (clearBackground)
+    {
+        spr.fillScreen(TFT_BLACK);
     }
 
-    // Pequeno delay para não monopolizar a CPU
-    vTaskDelay(pdMS_TO_TICKS(50));
-  }
+    spr.drawString(text, DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2, 2);
 
-  // Garante que o buzzer fique desligado ao sair
-  digitalWrite(POSITIVE_FEEDBACK, LOW);
-
-  vTaskDelete(NULL);
+    if (pushToDisplay)
+    {
+        spr.pushSprite(0, 0);
+    }
 }
-  
-void setup() {
-  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); 
 
-  pinMode(DISPLAY_ENABLE, OUTPUT);
-  pinMode(PIR, INPUT);
-  pinMode(POSITIVE_FEEDBACK, OUTPUT);
-  digitalWrite(DISPLAY_ENABLE, HIGH);
-  
-  // 5. INICIALIZAÇÃO E INTERRUPÇÃO
-  
-  // Define o tempo inicial de sleep (10 segundos)
-  next_sleep_time = millis() + DISPLAY_TIMEOUT_MS; 
+// Configuração da câmera
+void setupCamera()
+{
+    camera_config.ledc_channel = LEDC_CHANNEL_0;
+    camera_config.ledc_timer = LEDC_TIMER_0;
+    camera_config.pin_d0 = Y2_GPIO_NUM;
+    camera_config.pin_d1 = Y3_GPIO_NUM;
+    camera_config.pin_d2 = Y4_GPIO_NUM;
+    camera_config.pin_d3 = Y5_GPIO_NUM;
+    camera_config.pin_d4 = Y6_GPIO_NUM;
+    camera_config.pin_d5 = Y7_GPIO_NUM;
+    camera_config.pin_d6 = Y8_GPIO_NUM;
+    camera_config.pin_d7 = Y9_GPIO_NUM;
+    camera_config.pin_xclk = XCLK_GPIO_NUM;
+    camera_config.xclk_freq_hz = XCLK_FREQ_HZ;
+    camera_config.pin_pclk = PCLK_GPIO_NUM;
+    camera_config.pin_vsync = VSYNC_GPIO_NUM;
+    camera_config.pin_href = HREF_GPIO_NUM;
+    camera_config.pin_sccb_sda = SIOD_GPIO_NUM;
+    camera_config.pin_sccb_scl = SIOC_GPIO_NUM;
+    camera_config.pin_pwdn = PWDN_GPIO_NUM;
+    camera_config.pin_reset = RESET_GPIO_NUM;
+    camera_config.pixel_format = PIXFORMAT_RGB565; // Formato de pixel RGB565 (compatível com TFT)
+    camera_config.grab_mode = CAMERA_GRAB_LATEST;
+    camera_config.frame_size = FRAMESIZE_240X240; // 240x240
+    camera_config.jpeg_quality = JPEG_QUALITY;
+    camera_config.fb_location = CAMERA_FB_IN_PSRAM;
+    camera_config.fb_count = BUFFER_NUMBER;
+}
 
-  // Usamos a interrupção CHANGE para que a Task1code seja ativada rapidamente
-  // sempre que o PIR mudar de estado (HIGH/LOW).
-  attachInterrupt(digitalPinToInterrupt(PIR), handlePIRInterrupt, CHANGE);
+bool startCamera()
+{
+    short int retry_count = 0;
 
-  xTaskCreatePinnedToCore(
-    Task1code,   
-    "Task1",     
-    100000,      
-    NULL,        
-    1,           
-    &Task1,      
-    0);     
+    while (esp_camera_init(&camera_config) != ESP_OK)
+    {
+        retry_count++;
 
-  xTaskCreatePinnedToCore(
-    TaskBuzzerCode,
-    "TaskBuzzer",
-    2048,
-    NULL,
-    1,
-    NULL,
-    1);     
+        showText("Falha ao iniciar câmera! Tentando novamente... (" + String(retry_count) + "/5)", true);
 
-  // Configuração para o wakeup
-  esp_sleep_enable_ext0_wakeup(GPIO_NUM_33, 1);
-  rtc_gpio_pullup_dis(GPIO_NUM_33);
-  rtc_gpio_pulldown_en(GPIO_NUM_33);
+        if (retry_count > 5)
+        {
+            return false;
+        }
 
-  // 6. LOOP QUE ESPERA A TASK TERMINAR
-  while (!should_sleep_flag) {
-      // Pequeno atraso para dar tempo para a Task1code e o scheduler.
-      vTaskDelay(pdMS_TO_TICKS(100)); 
-  }
-  
-  // 7. FINALIZAÇÃO ANTES DO DEEP SLEEP
-  detachInterrupt(digitalPinToInterrupt(PIR)); 
-  digitalWrite(DISPLAY_ENABLE, LOW); 
-  
-  vTaskDelay(pdMS_TO_TICKS(500)); 
-  
-  esp_deep_sleep_start();
-} 
- 
-void loop() {
- 
+        vTaskDelay(pdMS_TO_TICKS(1000)); // Talvez conflito?
+    }
+
+    return true;
+}
+
+__attribute__((noreturn)) void sleep()
+{
+    esp_camera_deinit();
+    detachInterrupt(digitalPinToInterrupt(PIR_PIN));
+    digitalWrite(DISPLAY_ENABLE_PIN, LOW);
+    digitalWrite(POSITIVE_FB_PIN, LOW);
+    esp_deep_sleep_start();
+}
+
+void TaskDisplayCode(void *pvParameters)
+{
+    tasks_alive = tasks_alive + 1;
+
+    while (should_sleep_flag == false)
+    {
+        camera_fb_t *fb = esp_camera_fb_get();
+
+        if (!fb)
+        {
+            vTaskDelay(pdMS_TO_TICKS(10));
+            continue;
+        }
+
+        memcpy(spr_pixel_buffer, fb->buf, DISPLAY_HEIGHT * DISPLAY_WIDTH * 2);
+        esp_camera_fb_return(fb);
+
+        spr.pushSprite(0, 0);
+
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+
+    portENTER_CRITICAL(&tasks_alive_mux);
+    tasks_alive = tasks_alive - 1;
+    portEXIT_CRITICAL(&tasks_alive_mux);
+
+    vTaskDelete(nullptr);
+}
+
+void setup()
+{
+    WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+
+    // Configuração dos pinos
+    pinMode(DISPLAY_ENABLE_PIN, OUTPUT);
+    pinMode(PIR_PIN, INPUT);
+    pinMode(POSITIVE_FB_PIN, OUTPUT);
+    digitalWrite(DISPLAY_ENABLE_PIN, HIGH);
+
+    // Configuração da interrupção do PIR
+    attachInterrupt(digitalPinToInterrupt(PIR_PIN), handlePIRInterrupt, RISING);
+
+    // Configuração para o wakeup
+    esp_sleep_enable_ext0_wakeup((gpio_num_t)PIR_PIN, 1);
+    rtc_gpio_pullup_dis((gpio_num_t)PIR_PIN);
+    rtc_gpio_pulldown_en((gpio_num_t)PIR_PIN);
+
+    setupTFT();
+    setupSprite();
+
+    showText("Carregando...", true);
+
+    setupCamera();
+
+    if (!startCamera())
+    {
+        return;
+    }
+
+    xTaskCreatePinnedToCore(
+        TaskDisplayCode,
+        "TaskDisplay",
+        12288,
+        nullptr,
+        1,
+        &TaskDisplay,
+        APP_CPU_NUM);
+}
+
+// FREERTOS cria loopTask automaticamente, no CORE 1
+void loop()
+{
+    if (PIR_triggered)
+    {
+        last_PIR_tick = xTaskGetTickCount();
+        PIR_triggered = false;
+    }
+
+    if ((xTaskGetTickCount() - last_PIR_tick) > ticks_to_sleep)
+    {
+        should_sleep_flag = true;
+    }
+
+    if (should_sleep_flag && tasks_alive == 0)
+    {
+        sleep();
+    }
+
+    vTaskDelay(1);
 }
