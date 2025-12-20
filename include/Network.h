@@ -4,7 +4,8 @@
 #include <WiFiClientSecure.h>
 
 extern WiFiClientSecure client;
+extern bool should_send_flag;
 
 bool sendFrame();
-void initWifi();
+bool initWifi();
 void TaskNetworkCode(void *pvParameters);

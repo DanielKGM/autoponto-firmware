@@ -4,6 +4,7 @@
 #include "Secrets.h"
 
 WiFiClientSecure client;
+bool should_send_flag = false;
 
 bool sendFrame()
 {
@@ -12,13 +13,13 @@ bool sendFrame()
     return true;
 }
 
-bool connWifi()
+bool connWifi(const char *txt)
 {
     WiFi.disconnect();
     WiFi.begin(WIFI_SSID, WIFI_PASS);
 
     char msg[DISPLAY_MSG_MAX_LEN];
-    strcpy(msg, "Conectando ao WiFi");
+    strncpy(msg, txt, DISPLAY_MSG_MAX_LEN - 1);
     sendDisplayMessage(msg);
 
     while (WiFi.status() != WL_CONNECTED)
@@ -35,7 +36,12 @@ bool connWifi()
     return true;
 }
 
-void initWifi()
+void WiFiDisconnected(WiFiEvent_t event, WiFiEventInfo_t info)
+{
+    should_send_flag = connWifi("Conexão perdida! Reconectando");
+}
+
+bool initWifi()
 {
     WiFi.mode(WIFI_STA);
 
@@ -52,7 +58,10 @@ void initWifi()
         }
     }
 
-    connWifi();
+    WiFi.onEvent(WiFiDisconnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
+    WiFi.setHostname(HOST_NAME);
+
+    return connWifi("Conectando ao WiFi");
 }
 
 void TaskNetworkCode(void *pvParameters)
@@ -64,18 +73,13 @@ void TaskNetworkCode(void *pvParameters)
     const unsigned short send_its = ticks_to_send / tickDelay;
     unsigned short it_cnt = 0;
 
+    should_send_flag = initWifi();
+
     while (!should_sleep_flag)
     {
         if (++it_cnt >= send_its)
         {
             it_cnt = 0;
-
-            bool should_send_flag = true;
-
-            if (WiFi.status() != WL_CONNECTED)
-            {
-                should_send_flag = connWifi();
-            }
 
             if (should_send_flag)
             {
