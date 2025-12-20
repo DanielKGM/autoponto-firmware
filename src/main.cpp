@@ -19,11 +19,16 @@
 #include "Secrets.h"
 
 volatile bool should_sleep_flag = false;
+// volatile bool wifi_conn_flag = false;
 volatile TickType_t last_PIR_tick = 0;
+// volatile TickType_t wifi_conn_tick = 0;
 volatile bool PIR_triggered = false;
 volatile int tasks_alive = 0;
+
 portMUX_TYPE tasks_alive_mux = portMUX_INITIALIZER_UNLOCKED;
+
 const TickType_t ticks_to_sleep = pdMS_TO_TICKS(SLEEP_TIMEOUT_MS);
+const TickType_t ticks_to_send = pdMS_TO_TICKS(DATA_SEND_INTERVAL_MS);
 
 TaskHandle_t TaskDisplay;
 TaskHandle_t TaskNetwork;
@@ -34,10 +39,11 @@ WiFiClient client;
 // Biblioteca TFT_eSPI de Bodmer
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite spr = TFT_eSprite(&tft);
-uint16_t *spr_pixel_buffer; // Buffer de pixels do SPRITE. O sprite é exibido no display a cada iteração do loop da Task.
+
+uint16_t *sprite_buf;
 
 QueueHandle_t messageQueue = xQueueCreate(
-    3, // até 3 mensagens
+    5,
     DISPLAY_MSG_MAX_LEN);
 
 // Interrupt Service Routine (ISR) para detectar borda de descida no sinal do PIR
@@ -51,13 +57,15 @@ void setupTFT()
 {
     tft.init();
     tft.setRotation(0);
+    tft.setTextDatum(MC_DATUM);
     tft.fillScreen(TFT_BLACK);
 }
 
 // Configuração do sprite
 void setupSprite()
 {
-    spr_pixel_buffer = (uint16_t *)spr.createSprite(DISPLAY_WIDTH, DISPLAY_HEIGHT);
+    sprite_buf = (uint16_t *)spr.createSprite(DISPLAY_WIDTH, DISPLAY_HEIGHT);
+
     spr.fillScreen(TFT_BLACK);
     spr.setRotation(0);
     spr.setSwapBytes(true);
@@ -65,18 +73,14 @@ void setupSprite()
     spr.setTextDatum(MC_DATUM);             // Centraliza o texto
     spr.setTextFont(2);                     // Define a fonte do texto
     spr.setTextSize(1);                     // Define o tamanho do texto
-    spr.setTextWrap(true, false);           // Habilita quebra de linha automática horizontal
 }
 
-// Função para exibir texto no sprite
-void showText(const char *text, bool clearBackground = false, bool pushToDisplay = true)
+// Função para exibir texto no sprite. Sempre com fundo preto, no centro da tela
+void showText(const char *text, bool pushToDisplay = true)
 {
-    if (clearBackground)
-    {
-        spr.fillScreen(TFT_BLACK);
-    }
+    spr.fillScreen(TFT_BLACK);
 
-    tft.drawString(text, DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2);
+    spr.drawString(text, DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2);
 
     if (pushToDisplay)
     {
@@ -114,9 +118,10 @@ void setupCamera()
     camera_config.fb_count = BUFFER_NUMBER;
 }
 
+// Inicia Câmera
 bool startCamera()
 {
-    short int retry_count = 0;
+    unsigned short int retry_count = 0;
     char msg[DISPLAY_MSG_MAX_LEN];
 
     while (esp_camera_init(&camera_config) != ESP_OK)
@@ -143,7 +148,8 @@ bool startCamera()
     return true;
 }
 
-bool sendDisplayMessage(const char *text, TickType_t timeout = 0)
+// Envia uma mensagem para lista da TaskDisplay
+bool sendDisplayMessage(const char *text)
 {
     if (should_sleep_flag || !messageQueue)
     {
@@ -154,18 +160,20 @@ bool sendDisplayMessage(const char *text, TickType_t timeout = 0)
     strncpy(buf, text, DISPLAY_MSG_MAX_LEN - 1);
     buf[DISPLAY_MSG_MAX_LEN - 1] = '\0';
 
-    return xQueueSend(messageQueue, buf, timeout) == pdTRUE;
+    return xQueueSendToBack(messageQueue, buf, portTICK_PERIOD_MS) == pdPASS;
 }
 
+// Entra em Deepsleep
 __attribute__((noreturn)) void sleep()
 {
-    esp_camera_deinit();
     detachInterrupt(digitalPinToInterrupt(PIR_PIN));
     digitalWrite(DISPLAY_ENABLE_PIN, LOW);
     digitalWrite(POSITIVE_FB_PIN, LOW);
+    esp_camera_deinit();
     esp_deep_sleep_start();
 }
 
+// Muda a variável compartilhada de tasks vivas
 void changeAliveTaskCount(int delta)
 {
     portENTER_CRITICAL(&tasks_alive_mux);
@@ -173,91 +181,82 @@ void changeAliveTaskCount(int delta)
     portEXIT_CRITICAL(&tasks_alive_mux);
 }
 
-bool connectNetwork()
+// Conecta à Rede
+bool connectWifi()
 {
     sendDisplayMessage("Conectando ao WiFi...");
-    WiFi.begin(WIFI_SSID, WIFI_PASS);
+    WiFi.mode(WIFI_STA);
 
-    const auto ticks_to_conn_wifi = pdMS_TO_TICKS(WIFI_CONNECT_TIMEOUT_MS);
-    TickType_t wifiStart = xTaskGetTickCount();
+    const auto ticks_to_retry = pdMS_TO_TICKS(CONN_RETRY_INTERVAL_MS);
+    const auto max_try_its = pdMS_TO_TICKS(WIFI_CONNECT_TIMEOUT_MS) / ticks_to_retry;
+    short int it_count = 0;
 
-    while (WiFiClass::status() != WL_CONNECTED)
+    while (WiFi.status() != WL_CONNECTED)
     {
-        if (xTaskGetTickCount() - wifiStart > ticks_to_conn_wifi)
+        it_count++;
+
+        WiFi.disconnect(true);
+        WiFi.begin(WIFI_SSID, WIFI_PASS);
+
+        if (it_count > max_try_its)
         {
             sendDisplayMessage("Tempo limite de Conexão WiFi Atingido");
             return false;
         }
 
-        vTaskDelay(pdMS_TO_TICKS(CONN_RETRY_INTERVAL_MS));
+        vTaskDelay(ticks_to_retry);
     }
 
     return true;
 }
 
+// Conecta ao Servidor
 bool connectServer()
 {
     sendDisplayMessage("Conectando ao Servidor...");
-    client.connect(SERVER_IP, SERVER_PORT);
 
-    const auto ticks_to_conn_server = pdMS_TO_TICKS(SERVER_CONNECT_TIMEOUT_MS);
-    TickType_t serverStart = xTaskGetTickCount();
+    const auto ticks_to_retry = pdMS_TO_TICKS(CONN_RETRY_INTERVAL_MS);
+    const auto max_try_its = pdMS_TO_TICKS(SERVER_CONNECT_TIMEOUT_MS) / ticks_to_retry;
+    unsigned short int it_count = 0;
 
     while (!client.connected())
     {
-        if (xTaskGetTickCount() - serverStart > ticks_to_conn_server)
+        it_count++;
+
+        client.stop();
+        client.connect(SERVER_IP, SERVER_PORT);
+
+        if (it_count > max_try_its)
         {
             sendDisplayMessage("Tempo limite de Conexão Servidor Atingido");
             return false;
         }
 
-        vTaskDelay(pdMS_TO_TICKS(CONN_RETRY_INTERVAL_MS));
+        vTaskDelay(ticks_to_retry);
     }
     return true;
 }
 
-bool sendFrame()
+// Envia os pixels do buffer da câmera para o sprite do display
+bool sendCamToSprite()
 {
     camera_fb_t *fb = esp_camera_fb_get();
+
     if (!fb)
     {
         return false;
     }
 
-    uint8_t *jpg_buf = nullptr;
-    size_t jpg_len = 0;
-
-    bool ok = fmt2jpg(
-        fb->buf,
-        fb->len,
-        fb->width,
-        fb->height,
-        PIXFORMAT_RGB565,
-        JPEG_QUALITY,
-        &jpg_buf,
-        &jpg_len);
+    memcpy(sprite_buf, fb->buf, DISPLAY_WIDTH * DISPLAY_HEIGHT * 2);
 
     esp_camera_fb_return(fb);
+    return true;
+}
 
-    if (!ok || !jpg_buf || jpg_len == 0)
-    {
-        return false;
-    }
-
-    uint32_t len = htonl(jpg_len);
-    if (client.write((uint8_t *)&len, sizeof(len)) != sizeof(len))
-    {
-        free(jpg_buf);
-        return false;
-    }
-
-    size_t sent = 0;
-    while (sent < jpg_len)
-    {
-        sent += client.write(jpg_buf + sent, jpg_len - sent);
-    }
-
-    free(jpg_buf);
+// Converte o último frame da câmera e envia para o servidor
+bool sendFrame()
+{
+    sendDisplayMessage("Frame enviado");
     return true;
 }
 
@@ -265,18 +264,33 @@ void TaskNetworkCode(void *pvParameters)
 {
     changeAliveTaskCount(1);
 
-    const auto ticks_to_send = pdMS_TO_TICKS(DATA_SEND_INTERVAL_MS);
-
-    vTaskDelay(ticks_to_send);
-
-    should_sleep_flag = !connectNetwork();
-    should_sleep_flag = !connectServer();
+    const unsigned short int ticks_to_iterate = pdMS_TO_TICKS(100);
+    const unsigned short int send_its = ticks_to_send / ticks_to_iterate;
+    unsigned short int it_cnt = 0;
 
     while (!should_sleep_flag)
     {
-        // sendFrame();
-        sendDisplayMessage("ENVIADO");
-        vTaskDelay(ticks_to_send);
+        it_cnt++;
+
+        if ((WiFi.status() != WL_CONNECTED) && (!connectWifi()))
+        {
+            vTaskDelay(ticks_to_iterate);
+            continue;
+        }
+
+        if ((!client.connected()) && (!connectServer()))
+        {
+            vTaskDelay(ticks_to_iterate);
+            continue;
+        }
+
+        if (it_cnt > send_its - 1)
+        {
+            it_cnt = 0;
+            sendFrame();
+        }
+
+        vTaskDelay(ticks_to_iterate);
     }
 
     changeAliveTaskCount(-1);
@@ -291,39 +305,29 @@ void TaskDisplayCode(void *pvParameters)
     bool overlayActive = false;
     TickType_t overlayUntil = 0;
 
+    const unsigned short int ticks_to_iterate = pdMS_TO_TICKS(10);
+
     while (!should_sleep_flag)
     {
-        camera_fb_t *fb = esp_camera_fb_get();
 
-        if (!fb)
-        {
-            vTaskDelay(pdMS_TO_TICKS(10));
-            continue;
-        }
-
-        memcpy(spr_pixel_buffer, fb->buf, DISPLAY_WIDTH * DISPLAY_HEIGHT * 2);
-        esp_camera_fb_return(fb);
-
-        if (xQueueReceive(messageQueue, overlayMsg, 0) == pdTRUE)
+        if ((!overlayActive) && (xQueueReceive(messageQueue, overlayMsg, portTICK_PERIOD_MS) == pdPASS))
         {
             overlayActive = true;
+            showText(overlayMsg, true);
             overlayUntil = xTaskGetTickCount() + pdMS_TO_TICKS(MESSAGE_DISPLAY_DURATION_MS);
         }
 
-        if (overlayActive)
+        if (overlayActive && (xTaskGetTickCount() > overlayUntil))
         {
-            if (xTaskGetTickCount() > overlayUntil)
-            {
-                overlayActive = false;
-            }
-            else
-            {
-                showText(overlayMsg, false, false);
-            }
+            overlayActive = false;
         }
 
-        spr.pushSprite(0, 0);
-        vTaskDelay(pdMS_TO_TICKS(10));
+        if ((!overlayActive) && (sendCamToSprite()))
+        {
+            spr.pushSprite(0, 0);
+        }
+
+        vTaskDelay(ticks_to_iterate);
     }
 
     changeAliveTaskCount(-1);
@@ -342,7 +346,7 @@ void setup()
     digitalWrite(DISPLAY_ENABLE_PIN, HIGH);
 
     // Configuração da interrupção do PIR
-    attachInterrupt(digitalPinToInterrupt(PIR_PIN), handlePIRInterrupt, FALLING);
+    attachInterrupt(digitalPinToInterrupt(PIR_PIN), handlePIRInterrupt, CHANGE);
 
     // Configuração para o wakeup
     esp_sleep_enable_ext0_wakeup((gpio_num_t)PIR_PIN, 1);
@@ -366,7 +370,7 @@ void setup()
         "TaskDisplay",
         12288,
         nullptr,
-        1,
+        2,
         &TaskDisplay,
         APP_CPU_NUM);
 
@@ -385,8 +389,8 @@ void loop()
 {
     if (PIR_triggered)
     {
-        last_PIR_tick = xTaskGetTickCount();
         PIR_triggered = false;
+        last_PIR_tick = xTaskGetTickCount();
     }
 
     if ((xTaskGetTickCount() - last_PIR_tick) > ticks_to_sleep)
@@ -394,6 +398,7 @@ void loop()
         should_sleep_flag = true;
     }
 
+    // todas as tasks devem ser programadas para eventualmente "morrer" sob a condição "should sleep"
     if (should_sleep_flag && tasks_alive == 0)
     {
         sleep();
