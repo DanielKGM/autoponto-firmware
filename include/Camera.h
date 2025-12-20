@@ -1,3 +1,4 @@
+#pragma once
 // Power Down da câmera
 #define PWDN_GPIO_NUM 32
 
@@ -38,3 +39,8 @@
 
 // Qualidade JPEG (não usado em RGB565)
 #define JPEG_QUALITY 10
+
+#include "esp_camera.h"
+
+void setupCamera(); // Configura a struct
+bool startCamera(); // Inicia o driver com retries
