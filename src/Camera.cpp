@@ -4,7 +4,7 @@
 
 static camera_config_t camera_config;
 
-void setupCamera()
+void initCamera()
 {
     camera_config.ledc_channel = LEDC_CHANNEL_0;
     camera_config.ledc_timer = LEDC_TIMER_0;

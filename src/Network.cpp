@@ -1,13 +1,58 @@
 #include "Display.h"
 #include "Network.h"
-#include "Config.h"
 #include "Globals.h"
+#include "Secrets.h"
+
+WiFiClientSecure client;
 
 bool sendFrame()
 {
     // TODO: ENVIAR FRAME PARA O SERVIDOR
     sendDisplayMessage("Frame enviado", 1000);
     return true;
+}
+
+bool connWifi()
+{
+    WiFi.disconnect();
+    WiFi.begin(WIFI_SSID, WIFI_PASS);
+
+    char msg[DISPLAY_MSG_MAX_LEN];
+    strcpy(msg, "Conectando ao WiFi");
+    sendDisplayMessage(msg);
+
+    while (WiFi.status() != WL_CONNECTED)
+    {
+        if (strlen(msg) < DISPLAY_MSG_MAX_LEN - 1)
+        {
+            strcat(msg, ".");
+        }
+
+        sendDisplayMessage(msg);
+        vTaskDelay(pdMS_TO_TICKS(CONN_WAIT_INTERVAL_MS));
+    }
+
+    return true;
+}
+
+void initWifi()
+{
+    WiFi.mode(WIFI_STA);
+
+    IPAddress local_IP(LOCAL_IP);
+    IPAddress gateway(GATEWAY);
+    IPAddress subnet(SUBNET);
+
+    if (!WiFi.config(local_IP, gateway, subnet))
+    {
+        sendDisplayMessage("Configurando WiFi...");
+        while (!WiFi.config(local_IP, gateway, subnet))
+        {
+            vTaskDelay(pdMS_TO_TICKS(CONN_WAIT_INTERVAL_MS));
+        }
+    }
+
+    connWifi();
 }
 
 void TaskNetworkCode(void *pvParameters)
@@ -21,11 +66,21 @@ void TaskNetworkCode(void *pvParameters)
 
     while (!should_sleep_flag)
     {
-
         if (++it_cnt >= send_its)
         {
             it_cnt = 0;
-            sendFrame();
+
+            bool should_send_flag = true;
+
+            if (WiFi.status() != WL_CONNECTED)
+            {
+                should_send_flag = connWifi();
+            }
+
+            if (should_send_flag)
+            {
+                sendFrame();
+            }
         }
 
         vTaskDelay(tickDelay);

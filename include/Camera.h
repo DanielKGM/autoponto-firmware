@@ -37,10 +37,10 @@
 // Número de buffers de frame da câmera
 #define BUFFER_NUMBER 2
 
-// Qualidade JPEG (não usado em RGB565)
+// Qualidade JPEG (não usado em RGB565), 0-63, menor = melhor
 #define JPEG_QUALITY 10
 
 #include "esp_camera.h"
 
-void setupCamera(); // Configura a struct
+void initCamera();  // Configura a struct
 bool startCamera(); // Inicia o driver com retries

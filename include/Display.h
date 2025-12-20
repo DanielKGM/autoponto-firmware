@@ -3,12 +3,12 @@
 #include <TFT_eSPI.h>
 #include "esp_camera.h"
 
-TFT_eSPI tft;
-TFT_eSprite spr;
-uint16_t *sprite_buf;
+extern TFT_eSPI tft;
+extern TFT_eSprite spr;
+extern uint16_t *sprite_buf;
 
-void setupTFT();
-void setupSprite();
+void initTFT();
+void initSprite();
 
 void showText(const char *text, bool pushToDisplay = true);
 bool showCamFrame(bool push_sprite = false);

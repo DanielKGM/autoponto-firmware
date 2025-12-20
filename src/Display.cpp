@@ -1,12 +1,11 @@
 #include "Display.h"
-#include "Config.h"
 #include "Globals.h"
 
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite spr = TFT_eSprite(&tft);
 uint16_t *sprite_buf;
 
-void setupTFT()
+void initTFT()
 {
     tft.init();
     tft.setRotation(0);
@@ -14,7 +13,7 @@ void setupTFT()
     tft.fillScreen(TFT_BLACK);
 }
 
-void setupSprite()
+void initSprite()
 {
     sprite_buf = (uint16_t *)spr.createSprite(DISPLAY_WIDTH, DISPLAY_HEIGHT);
 
@@ -25,6 +24,7 @@ void setupSprite()
     spr.setTextDatum(MC_DATUM);             // Centraliza o texto
     spr.setTextFont(2);                     // Define a fonte do texto
     spr.setTextSize(1);                     // Define o tamanho do texto
+    spr.setTextWrap(true, true);            // Quebra de linha horizontal
 }
 
 void showText(const char *text, bool pushToDisplay)
@@ -39,7 +39,7 @@ void showText(const char *text, bool pushToDisplay)
     }
 }
 
-bool showCamFrame(bool push_sprite = false)
+bool showCamFrame(bool push_sprite)
 {
     camera_fb_t *fb = esp_camera_fb_get();
 
@@ -86,7 +86,7 @@ void TaskDisplayCode(void *pvParameters)
 
     while (!should_sleep_flag)
     {
-        if (!overlayActive && xQueueReceive(messageQueue, &msg, 0) == pdPASS)
+        if ((overlayUntil == 0) && xQueueReceive(messageQueue, &msg, 0) == pdPASS)
         {
             overlayActive = true;
             showText(msg.text, true);
@@ -103,6 +103,7 @@ void TaskDisplayCode(void *pvParameters)
 
         if (overlayActive && msg.duration > 0 && xTaskGetTickCount() >= overlayUntil)
         {
+            overlayUntil = 0;
             overlayActive = false;
         }
 

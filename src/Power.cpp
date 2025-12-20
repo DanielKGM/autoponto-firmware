@@ -1,13 +1,12 @@
 #include "Power.h"
 #include "Globals.h"
-#include "Config.h"
 
 void IRAM_ATTR handlePIRInterrupt()
 {
     PIR_triggered = true;
 }
 
-void setupPins()
+void initPins()
 {
     pinMode(DISPLAY_ENABLE_PIN, OUTPUT);
     pinMode(PIR_PIN, INPUT);
@@ -16,7 +15,7 @@ void setupPins()
     attachInterrupt(digitalPinToInterrupt(PIR_PIN), handlePIRInterrupt, CHANGE);
 }
 
-void setupSleep()
+void initSleep()
 {
     esp_sleep_enable_ext0_wakeup((gpio_num_t)PIR_PIN, 1);
     rtc_gpio_pullup_dis((gpio_num_t)PIR_PIN);

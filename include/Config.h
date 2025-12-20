@@ -1,3 +1,5 @@
+#pragma once
+
 // Sensor de presença (PIR)
 #define PIR_PIN 33
 #define SLEEP_TIMEOUT_MS 20000 // Tempo sem detecção PIR para entrar em deep sleep (20 segundos)
@@ -16,3 +18,4 @@
 // Rede
 // Algumas definições de rede foram movidas para o arquivo Secrets.h
 #define DATA_SEND_INTERVAL_MS 3000 // Intervalo entre envios de frames em milissegundos
+#define CONN_WAIT_INTERVAL_MS 500  // Intervalo para esperar conexão

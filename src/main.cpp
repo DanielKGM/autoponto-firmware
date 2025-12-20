@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include "Config.h"
 #include "Globals.h"
 #include "Power.h"
 #include "Camera.h"
@@ -9,6 +8,8 @@
 
 TickType_t last_PIR_tick = 0;
 const TickType_t ticks_to_sleep = pdMS_TO_TICKS(SLEEP_TIMEOUT_MS);
+TaskHandle_t TaskDisplay;
+TaskHandle_t TaskNetwork;
 
 void setup()
 {
@@ -17,17 +18,33 @@ void setup()
     messageQueue = xQueueCreate(5, sizeof(DisplayMessage));
     last_PIR_tick = xTaskGetTickCount();
 
-    setupPins();
-    setupSleep();
-    setupTFT();
-    setupSprite();
+    initPins();
+    initSleep();
+    initTFT();
+    initSprite();
+    initCamera();
 
     sendDisplayMessage("Iniciando...");
 
     if (startCamera())
     {
-        xTaskCreatePinnedToCore(TaskDisplayCode, "TaskDisplay", 10240, NULL, 2, NULL, 1);
-        xTaskCreatePinnedToCore(TaskNetworkCode, "TaskNetwork", 4096, NULL, 1, NULL, 0);
+        xTaskCreatePinnedToCore(
+            TaskDisplayCode,
+            "TaskDisplay",
+            12288,
+            nullptr,
+            2,
+            &TaskDisplay,
+            APP_CPU_NUM);
+
+        xTaskCreatePinnedToCore(
+            TaskNetworkCode,
+            "TaskNetwork",
+            4096,
+            nullptr,
+            1,
+            &TaskNetwork,
+            PRO_CPU_NUM);
     }
 }
 

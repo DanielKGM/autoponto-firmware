@@ -1,7 +1,7 @@
 #pragma once
 #include "Arduino.h"
+#include "Config.h"
 
-#define DISPLAY_MSG_MAX_LEN 50
 struct DisplayMessage
 {
     char text[DISPLAY_MSG_MAX_LEN];
