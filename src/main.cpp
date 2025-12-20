@@ -1,7 +1,7 @@
 #include "esp_camera.h"
 #include "Arduino.h"
 
-#include <WiFi.h>
+#include "esp_wifi.h"
 #include <EEPROM.h> // SALVAR DADOS PRÉ-DEEP SLEEP
 
 // RISCO DE BROWNOUT
@@ -19,9 +19,9 @@
 #include "Secrets.h"
 
 volatile bool should_sleep_flag = false;
-// volatile bool wifi_conn_flag = false;
+volatile bool wifi_connected_flag = false;
+
 volatile TickType_t last_PIR_tick = 0;
-// volatile TickType_t wifi_conn_tick = 0;
 volatile bool PIR_triggered = false;
 volatile int tasks_alive = 0;
 
@@ -34,7 +34,6 @@ TaskHandle_t TaskDisplay;
 TaskHandle_t TaskNetwork;
 
 camera_config_t camera_config;
-WiFiClient client;
 
 // Biblioteca TFT_eSPI de Bodmer
 TFT_eSPI tft = TFT_eSPI();
@@ -42,9 +41,14 @@ TFT_eSprite spr = TFT_eSprite(&tft);
 
 uint16_t *sprite_buf;
 
-QueueHandle_t messageQueue = xQueueCreate(
-    5,
-    DISPLAY_MSG_MAX_LEN);
+using DisplayMessage = struct
+{
+    char text[DISPLAY_MSG_MAX_LEN];
+    TickType_t duration; // 0 = persistente
+};
+
+QueueHandle_t messageQueue =
+    xQueueCreate(5, sizeof(DisplayMessage));
 
 // Interrupt Service Routine (ISR) para detectar borda de descida no sinal do PIR
 void IRAM_ATTR handlePIRInterrupt()
@@ -149,18 +153,18 @@ bool startCamera()
 }
 
 // Envia uma mensagem para lista da TaskDisplay
-bool sendDisplayMessage(const char *text)
+bool sendDisplayMessage(const char *text, unsigned long duration_ms)
 {
     if (should_sleep_flag || !messageQueue)
     {
         return false;
     }
 
-    char buf[DISPLAY_MSG_MAX_LEN];
-    strncpy(buf, text, DISPLAY_MSG_MAX_LEN - 1);
-    buf[DISPLAY_MSG_MAX_LEN - 1] = '\0';
+    DisplayMessage msg{};
+    strncpy(msg.text, text, DISPLAY_MSG_MAX_LEN - 1);
+    msg.duration = pdMS_TO_TICKS(duration_ms); // 0 = persistente
 
-    return xQueueSendToBack(messageQueue, buf, portTICK_PERIOD_MS) == pdPASS;
+    return xQueueSendToBack(messageQueue, &msg, 0) == pdPASS;
 }
 
 // Entra em Deepsleep
@@ -181,64 +185,8 @@ void changeAliveTaskCount(int delta)
     portEXIT_CRITICAL(&tasks_alive_mux);
 }
 
-// Conecta à Rede
-bool connectWifi()
-{
-    sendDisplayMessage("Conectando ao WiFi...");
-    WiFi.mode(WIFI_STA);
-
-    const auto ticks_to_retry = pdMS_TO_TICKS(CONN_RETRY_INTERVAL_MS);
-    const auto max_try_its = pdMS_TO_TICKS(WIFI_CONNECT_TIMEOUT_MS) / ticks_to_retry;
-    short int it_count = 0;
-
-    while (WiFi.status() != WL_CONNECTED)
-    {
-        it_count++;
-
-        WiFi.disconnect(true);
-        WiFi.begin(WIFI_SSID, WIFI_PASS);
-
-        if (it_count > max_try_its)
-        {
-            sendDisplayMessage("Tempo limite de Conexão WiFi Atingido");
-            return false;
-        }
-
-        vTaskDelay(ticks_to_retry);
-    }
-
-    return true;
-}
-
-// Conecta ao Servidor
-bool connectServer()
-{
-    sendDisplayMessage("Conectando ao Servidor...");
-
-    const auto ticks_to_retry = pdMS_TO_TICKS(CONN_RETRY_INTERVAL_MS);
-    const auto max_try_its = pdMS_TO_TICKS(SERVER_CONNECT_TIMEOUT_MS) / ticks_to_retry;
-    unsigned short int it_count = 0;
-
-    while (!client.connected())
-    {
-        it_count++;
-
-        client.stop();
-        client.connect(SERVER_IP, SERVER_PORT);
-
-        if (it_count > max_try_its)
-        {
-            sendDisplayMessage("Tempo limite de Conexão Servidor Atingido");
-            return false;
-        }
-
-        vTaskDelay(ticks_to_retry);
-    }
-    return true;
-}
-
 // Envia os pixels do buffer da câmera para o sprite do display
-bool sendCamToSprite()
+bool showCamFrame(bool push_sprite = false)
 {
     camera_fb_t *fb = esp_camera_fb_get();
 
@@ -250,13 +198,20 @@ bool sendCamToSprite()
     memcpy(sprite_buf, fb->buf, DISPLAY_WIDTH * DISPLAY_HEIGHT * 2);
 
     esp_camera_fb_return(fb);
+
+    if (push_sprite)
+    {
+        spr.pushSprite(0, 0);
+    }
+
     return true;
 }
 
 // Converte o último frame da câmera e envia para o servidor
 bool sendFrame()
 {
-    sendDisplayMessage("Frame enviado");
+    // TODO: ENVIAR FRAME PARA O SERVIDOR
+    sendDisplayMessage("Frame enviado", 1000);
     return true;
 }
 
@@ -264,33 +219,20 @@ void TaskNetworkCode(void *pvParameters)
 {
     changeAliveTaskCount(1);
 
-    const unsigned short int ticks_to_iterate = pdMS_TO_TICKS(100);
-    const unsigned short int send_its = ticks_to_send / ticks_to_iterate;
-    unsigned short int it_cnt = 0;
+    const TickType_t tickDelay = pdMS_TO_TICKS(100);
+    const unsigned short send_its = ticks_to_send / tickDelay;
+    unsigned short it_cnt = 0;
 
     while (!should_sleep_flag)
     {
-        it_cnt++;
 
-        if ((WiFi.status() != WL_CONNECTED) && (!connectWifi()))
-        {
-            vTaskDelay(ticks_to_iterate);
-            continue;
-        }
-
-        if ((!client.connected()) && (!connectServer()))
-        {
-            vTaskDelay(ticks_to_iterate);
-            continue;
-        }
-
-        if (it_cnt > send_its - 1)
+        if (++it_cnt >= send_its)
         {
             it_cnt = 0;
             sendFrame();
         }
 
-        vTaskDelay(ticks_to_iterate);
+        vTaskDelay(tickDelay);
     }
 
     changeAliveTaskCount(-1);
@@ -301,33 +243,40 @@ void TaskDisplayCode(void *pvParameters)
 {
     changeAliveTaskCount(1);
 
-    char overlayMsg[DISPLAY_MSG_MAX_LEN];
+    DisplayMessage msg{};
     bool overlayActive = false;
     TickType_t overlayUntil = 0;
 
-    const unsigned short int ticks_to_iterate = pdMS_TO_TICKS(10);
+    const TickType_t tickDelay = pdMS_TO_TICKS(50);
 
     while (!should_sleep_flag)
     {
-
-        if ((!overlayActive) && (xQueueReceive(messageQueue, overlayMsg, portTICK_PERIOD_MS) == pdPASS))
+        if (!overlayActive && xQueueReceive(messageQueue, &msg, 0) == pdPASS)
         {
             overlayActive = true;
-            showText(overlayMsg, true);
-            overlayUntil = xTaskGetTickCount() + pdMS_TO_TICKS(MESSAGE_DISPLAY_DURATION_MS);
+            showText(msg.text, true);
+
+            if (msg.duration > 0)
+            {
+                overlayUntil = xTaskGetTickCount() + msg.duration;
+            }
+            else
+            {
+                overlayUntil = 0;
+            }
         }
 
-        if (overlayActive && (xTaskGetTickCount() > overlayUntil))
+        if (overlayActive && msg.duration > 0 && xTaskGetTickCount() >= overlayUntil)
         {
             overlayActive = false;
         }
 
-        if ((!overlayActive) && (sendCamToSprite()))
+        if (!overlayActive)
         {
-            spr.pushSprite(0, 0);
+            showCamFrame(true);
         }
 
-        vTaskDelay(ticks_to_iterate);
+        vTaskDelay(tickDelay);
     }
 
     changeAliveTaskCount(-1);
