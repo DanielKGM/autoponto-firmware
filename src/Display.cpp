@@ -89,35 +89,31 @@ void TaskDisplayCode(void *pvParameters)
     changeAliveTaskCount(1);
 
     DisplayMessage msg{};
-    bool overlayActive = false;
+
+    bool hasMessage = false;
     TickType_t overlayUntil = 0;
 
     const TickType_t tickDelay = pdMS_TO_TICKS(50);
 
     while (!should_sleep_flag)
     {
-        if ((overlayUntil == 0) && xQueueReceive(messageQueue, &msg, 0) == pdPASS)
+        TickType_t now = xTaskGetTickCount();
+
+        if (hasMessage && overlayUntil != 0 && now >= overlayUntil)
         {
-            overlayActive = true;
+            hasMessage = false;
+        }
+
+        bool canOverwrite = !hasMessage || (overlayUntil == 0);
+
+        if (canOverwrite && xQueueReceive(messageQueue, &msg, 0) == pdPASS)
+        {
+            hasMessage = true;
+            overlayUntil = (msg.duration > 0) ? (now + msg.duration) : 0;
             showText(msg.text, true);
-
-            if (msg.duration > 0)
-            {
-                overlayUntil = xTaskGetTickCount() + msg.duration;
-            }
-            else
-            {
-                overlayUntil = 0;
-            }
         }
 
-        if (overlayActive && msg.duration > 0 && xTaskGetTickCount() >= overlayUntil)
-        {
-            overlayUntil = 0;
-            overlayActive = false;
-        }
-
-        if (!overlayActive)
+        if (!hasMessage)
         {
             showCamFrame(true);
         }
