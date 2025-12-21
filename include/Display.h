@@ -1,14 +1,20 @@
 #pragma once
 #include "Arduino.h"
-#include <TFT_eSPI.h>
+
 #include "esp_camera.h"
+
+#include <SD.h> // Isso define a classe 'File' que o JPEGDEC procura
+#include <JPEGDEC.h>
+#include <TFT_eSPI.h>
 
 extern TFT_eSPI tft;
 extern TFT_eSprite spr;
-extern uint16_t *sprite_buf;
+extern JPEGDEC decoder;
 
 void initTFT();
 void initSprite();
+
+int drawMCUs(JPEGDRAW *pDraw);
 
 void showText(const char *text, bool pushToDisplay = true);
 bool showCamFrame(bool push_sprite = false);

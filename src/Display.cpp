@@ -1,25 +1,29 @@
 #include "Display.h"
 #include "Globals.h"
 
+JPEGDEC decoder;
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite spr = TFT_eSprite(&tft);
-uint16_t *sprite_buf;
+
+int drawMCUs(JPEGDRAW *pDraw)
+{
+    spr.pushImage(pDraw->x, pDraw->y, pDraw->iWidth, pDraw->iHeight, pDraw->pPixels);
+    return 1;
+}
 
 void initTFT()
 {
     tft.init();
     tft.setRotation(0);
-    tft.setTextDatum(MC_DATUM);
     tft.fillScreen(TFT_BLACK);
 }
 
 void initSprite()
 {
-    sprite_buf = (uint16_t *)spr.createSprite(DISPLAY_WIDTH, DISPLAY_HEIGHT);
-
+    spr.createSprite(DISPLAY_WIDTH, DISPLAY_HEIGHT);
     spr.fillScreen(TFT_BLACK);
     spr.setRotation(0);
-    spr.setSwapBytes(true);
+    spr.setSwapBytes(false);
     spr.setTextColor(TFT_WHITE, TFT_BLACK); // Cor do texto: branco, fundo preto
     spr.setTextDatum(MC_DATUM);             // Centraliza o texto
     spr.setTextFont(2);                     // Define a fonte do texto
@@ -47,16 +51,23 @@ bool showCamFrame(bool push_sprite)
         return false;
     }
 
-    memcpy(sprite_buf, fb->buf, DISPLAY_WIDTH * DISPLAY_HEIGHT * 2);
+    int converted = 0;
+
+    if (decoder.openRAM(fb->buf, fb->len, drawMCUs))
+    {
+        decoder.setPixelType(RGB565_BIG_ENDIAN);
+        converted = decoder.decode(0, 0, 0);
+        decoder.close();
+    }
 
     esp_camera_fb_return(fb);
 
-    if (push_sprite)
+    if (converted == 1 && push_sprite)
     {
         spr.pushSprite(0, 0);
     }
 
-    return true;
+    return converted == 1;
 }
 
 bool sendDisplayMessage(const char *text, unsigned long duration_ms)

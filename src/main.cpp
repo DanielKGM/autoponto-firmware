@@ -58,12 +58,12 @@ void loop()
 
     if ((xTaskGetTickCount() - last_PIR_tick) > ticks_to_sleep)
     {
-        should_sleep_flag = true;
+        // should_sleep_flag = true;
     }
 
     if (should_sleep_flag && tasks_alive == 0)
     {
-        sleep();
+        // sleep();
     }
 
     vTaskDelay(pdMS_TO_TICKS(100));
