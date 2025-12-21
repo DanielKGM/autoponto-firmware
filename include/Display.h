@@ -3,7 +3,6 @@
 
 #include "esp_camera.h"
 
-#include <SD.h> // Isso define a classe 'File' que o JPEGDEC procura
 #include <JPEGDEC.h>
 #include <TFT_eSPI.h>
 

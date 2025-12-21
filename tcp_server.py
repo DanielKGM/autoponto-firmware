@@ -1,38 +1,37 @@
-import socket
+from flask import Flask, request
 import cv2
 import numpy as np
 
-def main():
-    s = socket.socket()
-    s.bind(("0.0.0.0", 5000))
-    s.listen(1)
+app = Flask(__name__)
 
-    print("Aguardando ESP32...")
-    conn, _ = s.accept()
+@app.route('/upload', methods=['POST'])
+def upload():
+    # 1. Recebe os bytes brutos do corpo da requisição (fb->buf do ESP32)
+    img_bytes = request.data
+    
+    if img_bytes:
+        # 2. Converte os bytes para um array numpy
+        nparr = np.frombuffer(img_bytes, np.uint8)
+        
+        # 3. Decodifica o JPEG para o formato BGR (padrão do OpenCV)
+        # É aqui que o reconhecimento facial começaria
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        if img is not None:
+            # 4. Exibe a imagem em uma janela
+            cv2.imshow("ESP32-CAM Stream", img)
+            
+            # Pequeno delay para o OpenCV atualizar a janela
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                return "Fechando...", 200
+            
+            print(f"Frame recebido! Tamanho: {len(img_bytes)} bytes")
+            return "OK", 200
+        
+    print("Falha ao receber frame")
+    return "Falha", 400
 
-    buffer = b''
-
-    while True:
-        data = conn.recv(4096)
-        if not data:
-            break
-
-        buffer += data
-
-        # JPEG termina com FFD9
-        end = buffer.find(b'\xff\xd9')
-        if end != -1:
-            jpg = buffer[:end+2]
-            buffer = buffer[end+2:]
-
-            img = cv2.imdecode(
-                np.frombuffer(jpg, dtype=np.uint8),
-                cv2.IMREAD_COLOR
-            )
-
-            if img is not None:
-                cv2.imshow("ESP32", img)
-                cv2.waitKey(1)
-
-if __name__ == "__main__":
-    main()
+if __name__ == '__main__':
+    # Rode no IP local da sua máquina (0.0.0.0 aceita conexões de outros dispositivos)
+    # A porta padrão é 5000
+    app.run(host='0.0.0.0', port=5000, debug=False)
