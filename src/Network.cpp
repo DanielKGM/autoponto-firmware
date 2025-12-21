@@ -7,8 +7,13 @@ bool should_send_flag = false;
 
 bool sendFrame()
 {
-    // TODO: ENVIAR FRAME PARA O SERVIDOR
-    sendDisplayMessage("Frame enviado", 1000);
+    if (WiFi.status() != WL_CONNECTED)
+    {
+        return false;
+    }
+
+    sendDisplayMessage("ENVIADO", 2000);
+
     return true;
 }
 

@@ -33,14 +33,14 @@ void setup()
             "TaskDisplay",
             12288,
             nullptr,
-            2,
+            1,
             &TaskDisplay,
             APP_CPU_NUM);
 
         xTaskCreatePinnedToCore(
             TaskNetworkCode,
             "TaskNetwork",
-            4096,
+            8192,
             nullptr,
             1,
             &TaskNetwork,

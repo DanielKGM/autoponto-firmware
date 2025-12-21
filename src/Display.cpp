@@ -95,18 +95,19 @@ void TaskDisplayCode(void *pvParameters)
 
     const TickType_t tickDelay = pdMS_TO_TICKS(50);
 
+    int count = 0;
+
     while (!should_sleep_flag)
     {
+        count++;
         TickType_t now = xTaskGetTickCount();
 
-        if (hasMessage && overlayUntil != 0 && now >= overlayUntil)
+        if (hasMessage && now >= overlayUntil)
         {
             hasMessage = false;
         }
 
-        bool canOverwrite = !hasMessage || (overlayUntil == 0);
-
-        if (canOverwrite && xQueueReceive(messageQueue, &msg, 0) == pdPASS)
+        if (!hasMessage && xQueueReceive(messageQueue, &msg, 0) == pdPASS)
         {
             hasMessage = true;
             overlayUntil = (msg.duration > 0) ? (now + msg.duration) : 0;
@@ -115,7 +116,9 @@ void TaskDisplayCode(void *pvParameters)
 
         if (!hasMessage)
         {
-            showCamFrame(true);
+            char buf[32];
+            snprintf(buf, sizeof(buf), "SEND COUNT %d", count);
+            showText(buf, true);
         }
 
         vTaskDelay(tickDelay);
