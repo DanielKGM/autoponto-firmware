@@ -24,7 +24,6 @@ void initSprite()
     spr.setTextDatum(MC_DATUM);             // Centraliza o texto
     spr.setTextFont(2);                     // Define a fonte do texto
     spr.setTextSize(1);                     // Define o tamanho do texto
-    spr.setTextWrap(true, true);            // Quebra de linha horizontal
 }
 
 void showText(const char *text, bool pushToDisplay)
