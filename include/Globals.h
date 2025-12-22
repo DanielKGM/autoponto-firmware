@@ -8,10 +8,23 @@ struct DisplayMessage
     TickType_t duration;
 };
 
-extern volatile bool should_sleep_flag;
-extern volatile bool PIR_triggered;
-extern volatile int tasks_alive;
-extern portMUX_TYPE tasks_alive_mux;
+enum class SystemState
+{
+    BOOTING,
+    READY,
+    DISCONNECTED,
+    SLEEPING
+};
+
+extern volatile SystemState current_state;
+extern portMUX_TYPE system_state_mux;
+
 extern QueueHandle_t messageQueue;
 
-void changeAliveTaskCount(int delta);
+extern volatile int tasks_alive;
+extern portMUX_TYPE tasks_alive_mux;
+
+extern volatile bool PIR_triggered;
+
+void changeTaskCount(int delta);
+void setSystemState(SystemState new_state);

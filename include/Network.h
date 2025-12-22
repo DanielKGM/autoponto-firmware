@@ -3,8 +3,7 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 
-extern bool should_send_flag;
-
 bool sendFrame();
 bool initWifi();
+bool connWifi();
 void TaskNetworkCode(void *pvParameters);

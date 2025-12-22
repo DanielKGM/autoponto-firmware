@@ -24,10 +24,10 @@ void initSprite()
     spr.fillScreen(TFT_BLACK);
     spr.setRotation(0);
     spr.setSwapBytes(false);
-    spr.setTextColor(TFT_WHITE, TFT_BLACK); // Cor do texto: branco, fundo preto
-    spr.setTextDatum(MC_DATUM);             // Centraliza o texto
-    spr.setTextFont(2);                     // Define a fonte do texto
-    spr.setTextSize(1);                     // Define o tamanho do texto
+    spr.setTextColor(TFT_WHITE, TFT_BLACK);
+    spr.setTextDatum(MC_DATUM);
+    spr.setTextFont(2);
+    spr.setTextSize(1);
 }
 
 void showText(const char *text, bool pushToDisplay)
@@ -72,21 +72,21 @@ bool showCamFrame(bool push_sprite)
 
 bool sendDisplayMessage(const char *text, unsigned long duration_ms)
 {
-    if (should_sleep_flag || !messageQueue)
+    if (!messageQueue)
     {
         return false;
     }
 
     DisplayMessage msg{};
     strncpy(msg.text, text, DISPLAY_MSG_MAX_LEN - 1);
-    msg.duration = pdMS_TO_TICKS(duration_ms); // 0 = persistente
+    msg.duration = pdMS_TO_TICKS(duration_ms);
 
     return xQueueSendToBack(messageQueue, &msg, 0) == pdPASS;
 }
 
 void TaskDisplayCode(void *pvParameters)
 {
-    changeAliveTaskCount(1);
+    changeTaskCount(1);
 
     DisplayMessage msg{};
 
@@ -95,11 +95,8 @@ void TaskDisplayCode(void *pvParameters)
 
     const TickType_t tickDelay = pdMS_TO_TICKS(50);
 
-    int count = 0;
-
-    while (!should_sleep_flag)
+    while (current_state != SystemState::SLEEPING)
     {
-        count++;
         TickType_t now = xTaskGetTickCount();
 
         if (hasMessage && now >= overlayUntil)
@@ -114,16 +111,14 @@ void TaskDisplayCode(void *pvParameters)
             showText(msg.text, true);
         }
 
-        if (!hasMessage)
+        if (!hasMessage && current_state == SystemState::READY)
         {
-            char buf[32];
-            snprintf(buf, sizeof(buf), "SEND COUNT %d", count);
-            showText(buf, true);
+            showCamFrame(true);
         }
 
         vTaskDelay(tickDelay);
     }
 
-    changeAliveTaskCount(-1);
+    changeTaskCount(-1);
     vTaskDelete(nullptr);
 }

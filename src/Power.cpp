@@ -22,7 +22,6 @@ void initSleep()
     rtc_gpio_pulldown_en((gpio_num_t)PIR_PIN);
 }
 
-// Entra em Deepsleep
 __attribute__((noreturn)) void sleep()
 {
     detachInterrupt(digitalPinToInterrupt(PIR_PIN));

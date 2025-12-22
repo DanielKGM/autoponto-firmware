@@ -3,8 +3,6 @@
 #include "Globals.h"
 #include "Secrets.h"
 
-bool should_send_flag = false;
-
 bool sendFrame()
 {
     if (WiFi.status() != WL_CONNECTED)
@@ -19,7 +17,6 @@ bool sendFrame()
 
 bool connWifi()
 {
-    WiFi.disconnect();
     WiFi.begin(WIFI_SSID, WIFI_PASS);
 
     char msg[DISPLAY_MSG_MAX_LEN];
@@ -44,48 +41,25 @@ bool initWifi()
 {
     WiFi.mode(WIFI_STA);
 
-    IPAddress local_IP(LOCAL_IP);
-    IPAddress gateway(GATEWAY);
-    IPAddress subnet(SUBNET);
-
-    if (!WiFi.config(local_IP, gateway, subnet))
-    {
-        sendDisplayMessage("Configurando WiFi...");
-        while (!WiFi.config(local_IP, gateway, subnet))
-        {
-            vTaskDelay(pdMS_TO_TICKS(CONN_WAIT_INTERVAL_MS));
-        }
-    }
-
-    WiFi.setHostname(HOST_NAME);
-
     return connWifi();
 }
 
 void TaskNetworkCode(void *pvParameters)
 {
-    changeAliveTaskCount(1);
+    changeTaskCount(1);
 
     const TickType_t tickDelay = pdMS_TO_TICKS(100);
-    const TickType_t ticks_to_send = pdMS_TO_TICKS(DATA_SEND_INTERVAL_MS);
+    const TickType_t ticks_to_send = pdMS_TO_TICKS(POST_INTERVAL_MS);
     const unsigned short send_its = ticks_to_send / tickDelay;
     unsigned short it_cnt = 0;
 
-    should_send_flag = initWifi();
-
-    while (!should_sleep_flag)
+    while (current_state != SystemState::SLEEPING)
     {
-        if (++it_cnt >= send_its)
+        if (++it_cnt > send_its)
         {
             it_cnt = 0;
 
-            if (WiFi.status() != WL_CONNECTED)
-            {
-                should_send_flag = connWifi();
-                continue;
-            }
-
-            if (should_send_flag)
+            if (current_state == SystemState::READY)
             {
                 sendFrame();
             }
@@ -94,6 +68,6 @@ void TaskNetworkCode(void *pvParameters)
         vTaskDelay(tickDelay);
     }
 
-    changeAliveTaskCount(-1);
+    changeTaskCount(-1);
     vTaskDelete(nullptr);
 }

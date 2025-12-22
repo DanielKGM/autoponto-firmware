@@ -17,5 +17,8 @@
 // Rede
 // Algumas definições de rede foram movidas para o arquivo Secrets.h
 #define HOST_NAME "esp32cam-autotoponto"
-#define DATA_SEND_INTERVAL_MS 3000 // Intervalo entre envios de frames em milissegundos
-#define CONN_WAIT_INTERVAL_MS 500  // Intervalo para esperar conexão
+
+#define POST_INTERVAL_MS 3000            // Intervalo entre envios de frames em milissegundos
+#define MESSAGE_PUBLISH_INTERVAL_MS 3000 // Invervale entre envio de mensagens MQTT, em milissegundos
+
+#define CONN_WAIT_INTERVAL_MS 500 // Intervalo para esperar conexão

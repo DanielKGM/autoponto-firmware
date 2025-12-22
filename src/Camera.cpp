@@ -25,9 +25,9 @@ void initCamera()
     camera_config.pin_sccb_scl = SIOC_GPIO_NUM;
     camera_config.pin_pwdn = PWDN_GPIO_NUM;
     camera_config.pin_reset = RESET_GPIO_NUM;
-    camera_config.pixel_format = PIXFORMAT_JPEG; // Formato de pixel RGB565 (compatível com TFT)
+    camera_config.pixel_format = PIXFORMAT_JPEG;
     camera_config.grab_mode = CAMERA_GRAB_LATEST;
-    camera_config.frame_size = FRAMESIZE_240X240; // 240x240
+    camera_config.frame_size = FRAMESIZE_240X240;
     camera_config.jpeg_quality = JPEG_QUALITY;
     camera_config.fb_location = CAMERA_FB_IN_PSRAM;
     camera_config.fb_count = BUFFER_NUMBER;

@@ -15,6 +15,8 @@ void setup()
 {
     WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
 
+    setSystemState(SystemState::BOOTING);
+
     messageQueue = xQueueCreate(5, sizeof(DisplayMessage));
     last_PIR_tick = xTaskGetTickCount();
 
@@ -23,11 +25,12 @@ void setup()
     initTFT();
     initSprite();
     initCamera();
-
-    sendDisplayMessage("Iniciando...");
+    initWifi();
 
     if (startCamera())
     {
+        setSystemState(SystemState::READY);
+
         xTaskCreatePinnedToCore(
             TaskDisplayCode,
             "TaskDisplay",
@@ -61,10 +64,19 @@ void loop()
         // should_sleep_flag = true;
     }
 
-    if (should_sleep_flag && tasks_alive == 0)
+    if (current_state == SystemState::SLEEPING && tasks_alive == 0)
     {
         // sleep();
     }
 
-    vTaskDelay(pdMS_TO_TICKS(100));
+    if (!WiFi.isConnected())
+    {
+        setSystemState(SystemState::DISCONNECTED);
+        if (connWifi())
+        {
+            setSystemState(SystemState::READY);
+        }
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(500));
 }
