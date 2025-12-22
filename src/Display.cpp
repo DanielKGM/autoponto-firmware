@@ -4,6 +4,7 @@
 JPEGDEC decoder;
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite spr = TFT_eSprite(&tft);
+QueueHandle_t messageQueue = xQueueCreate(5, sizeof(DisplayMessage));
 
 int drawMCUs(JPEGDRAW *pDraw)
 {

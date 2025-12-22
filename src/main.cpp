@@ -6,7 +6,6 @@
 #include "Network.h"
 #include "soc/rtc_cntl_reg.h"
 
-TickType_t last_PIR_tick = 0;
 const TickType_t ticks_to_sleep = pdMS_TO_TICKS(SLEEP_TIMEOUT_MS);
 TaskHandle_t TaskDisplay;
 TaskHandle_t TaskNetwork;
@@ -16,9 +15,6 @@ void setup()
     WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
 
     setSystemState(SystemState::BOOTING);
-
-    messageQueue = xQueueCreate(5, sizeof(DisplayMessage));
-    last_PIR_tick = xTaskGetTickCount();
 
     initPins();
     initSleep();
@@ -61,7 +57,7 @@ void loop()
 
     if ((xTaskGetTickCount() - last_PIR_tick) > ticks_to_sleep)
     {
-        // should_sleep_flag = true;
+        // setSystemState(SystemState::SLEEPING);
     }
 
     if (current_state == SystemState::SLEEPING && tasks_alive == 0)

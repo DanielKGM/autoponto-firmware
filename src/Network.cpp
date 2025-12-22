@@ -21,16 +21,19 @@ bool connWifi()
 
     char msg[DISPLAY_MSG_MAX_LEN];
     strcpy(msg, "Conectando ao WiFi");
-    sendDisplayMessage(msg);
+
+    short int dots = 0;
 
     while (WiFi.status() != WL_CONNECTED)
     {
-        if (strlen(msg) < DISPLAY_MSG_MAX_LEN - 1)
-        {
-            strcat(msg, ".");
-        }
+        dots = (dots + 1) % 4;
+
+        snprintf(msg, sizeof(msg),
+                 "Conectando ao WiFi%.*s",
+                 dots, "...");
 
         sendDisplayMessage(msg);
+
         vTaskDelay(pdMS_TO_TICKS(CONN_WAIT_INTERVAL_MS));
     }
 

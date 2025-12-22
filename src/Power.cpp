@@ -1,6 +1,9 @@
 #include "Power.h"
 #include "Globals.h"
 
+volatile TickType_t last_PIR_tick = xTaskGetTickCount();
+volatile bool PIR_triggered = false;
+
 void IRAM_ATTR handlePIRInterrupt()
 {
     PIR_triggered = true;

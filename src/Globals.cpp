@@ -2,11 +2,9 @@
 
 volatile SystemState current_state;
 
-volatile bool PIR_triggered = false;
 volatile int tasks_alive = 0;
 portMUX_TYPE tasks_alive_mux = portMUX_INITIALIZER_UNLOCKED;
 portMUX_TYPE system_state_mux = portMUX_INITIALIZER_UNLOCKED;
-QueueHandle_t messageQueue = nullptr;
 
 void changeTaskCount(int delta)
 {

@@ -1,11 +1,16 @@
 #pragma once
 #include "Arduino.h"
-
 #include "esp_camera.h"
-
 #include <JPEGDEC.h>
 #include <TFT_eSPI.h>
 
+struct DisplayMessage
+{
+    char text[DISPLAY_MSG_MAX_LEN];
+    TickType_t duration;
+};
+
+extern QueueHandle_t messageQueue;
 extern TFT_eSPI tft;
 extern TFT_eSprite spr;
 extern JPEGDEC decoder;
