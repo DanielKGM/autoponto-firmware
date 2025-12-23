@@ -10,6 +10,7 @@
 const TickType_t ticks_to_sleep = pdMS_TO_TICKS(SLEEP_TIMEOUT_MS);
 TaskHandle_t TaskDisplay;
 TaskHandle_t TaskNetwork;
+TaskHandle_t TaskMqtt;
 
 void initID()
 {
@@ -69,6 +70,15 @@ void setup()
         1,
         &TaskNetwork,
         PRO_CPU_NUM);
+
+    xTaskCreatePinnedToCore(
+        TaskMqttCode,
+        "TaskMqtt",
+        4096,
+        nullptr,
+        1,
+        &TaskMqtt,
+        APP_CPU_NUM);
 }
 
 void loop()
@@ -87,15 +97,6 @@ void loop()
     if (currentState == SystemState::SLEEPING && tasksAlive == 0)
     {
         // sleep();
-    }
-
-    if (!WiFi.isConnected())
-    {
-        setSystemState(SystemState::DISCONNECTED);
-        if (connWifi())
-        {
-            setSystemState(SystemState::READY);
-        }
     }
 
     vTaskDelay(pdMS_TO_TICKS(500));

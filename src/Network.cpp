@@ -58,7 +58,17 @@ void TaskNetworkCode(void *pvParameters)
 
     while (currentState != SystemState::SLEEPING)
     {
-        if (++it_cnt > send_its)
+        if (!WiFi.isConnected())
+        {
+            setSystemState(SystemState::DISCONNECTED);
+            if (connWifi())
+            {
+                setSystemState(SystemState::READY);
+                continue;
+            }
+        }
+
+        if (it_cnt++ > send_its)
         {
             it_cnt = 0;
 

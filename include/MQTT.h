@@ -3,7 +3,7 @@
 #include <PubSubClient.h>
 
 extern PubSubClient mqtt;
-extern volatile bool logFlag;
+extern volatile bool loggerFlag;
 extern char topicStatus[];
 extern char topicCmd[];
 extern char topicLogs[];
@@ -16,3 +16,4 @@ void loadLogFlag();
 void setLogFlag(bool value);
 
 void mqttCallback(char *topic, byte *payload, unsigned int length);
+void TaskMqttCode(void *pvParameters);

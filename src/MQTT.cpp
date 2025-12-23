@@ -4,7 +4,7 @@
 #include "Display.h"
 
 PubSubClient mqtt;
-volatile bool logFlag;
+volatile bool loggerFlag;
 char topicStatus[17];
 char topicCmd[17];
 char topicLogs[17];
@@ -50,15 +50,13 @@ bool connMqtt()
         vTaskDelay(pdMS_TO_TICKS(CONN_WAIT_INTERVAL_MS));
     }
 
-    mqtt.publish(topicStatus, "ONLINE", true);
-    mqtt.subscribe(topicCmd, 1);
-
     return true;
 }
 
 bool initMqtt()
 {
     buildTopics();
+    loadLogFlag();
 
     mqtt.setClient(wifiClient);
     mqtt.setServer(MQTT_URL, MQTT_PORT);
@@ -72,7 +70,7 @@ void loadLogFlag()
     Preferences prefs;
     prefs.begin("mqtt", true);
 
-    logFlag = prefs.getBool("log", MQTT_LOG_DEFAULT);
+    loggerFlag = prefs.getBool("log", MQTT_LOG_DEFAULT);
 
     prefs.end();
 }
@@ -86,7 +84,7 @@ void setLogFlag(bool value)
 
     prefs.end();
 
-    logFlag = value;
+    loggerFlag = value;
 }
 
 void mqttCallback(char *topic, byte *payload, unsigned int length)
@@ -102,9 +100,38 @@ void mqttCallback(char *topic, byte *payload, unsigned int length)
     {
         bool newValue = doc["log"];
 
-        if (logFlag != newValue)
+        if (loggerFlag != newValue)
         {
             setLogFlag(newValue);
         }
     }
+}
+
+void TaskMqttCode(void *pvParameters)
+{
+    changeTaskCount(1);
+
+    mqtt.publish(topicStatus, "ONLINE", true);
+    mqtt.subscribe(topicCmd, 1);
+
+    const TickType_t tickDelay = pdMS_TO_TICKS(100);
+
+    while (currentState != SystemState::SLEEPING)
+    {
+        if (!mqtt.connected())
+        {
+            setSystemState(SystemState::DISCONNECTED);
+            if (connMqtt())
+            {
+                setSystemState(SystemState::READY);
+                continue;
+            }
+        }
+
+        mqtt.loop();
+        vTaskDelay(tickDelay);
+    }
+
+    changeTaskCount(-1);
+    vTaskDelete(nullptr);
 }
