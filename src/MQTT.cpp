@@ -208,14 +208,14 @@ void TaskMqttCode(void *pvParameters)
             setSystemState(SystemState::READY);
         }
 
-        if (loggerFlag && isConnected)
+        if (isConnected)
         {
             if (xQueueReceive(mqttQueue, lastMsg, 0) == pdTRUE)
             {
                 mqtt.publish(topicLogs, lastMsg, false);
             }
 
-            if ((xTaskGetTickCount() - lastStatsTick) > logInterval)
+            if (loggerFlag && (xTaskGetTickCount() - lastStatsTick) > logInterval)
             {
                 lastStatsTick = xTaskGetTickCount();
                 publishSystemStats();
