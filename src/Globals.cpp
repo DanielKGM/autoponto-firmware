@@ -9,14 +9,14 @@ portMUX_TYPE systemStateMux = portMUX_INITIALIZER_UNLOCKED;
 
 void changeTaskCount(int delta)
 {
-    portENTER_CRITICAL(&tasksAliveMux);
+    portTRY_ENTER_CRITICAL(&tasksAliveMux, pdMS_TO_TICKS(500));
     tasksAlive = tasksAlive + delta;
     portEXIT_CRITICAL(&tasksAliveMux);
 }
 
 void setSystemState(SystemState newState)
 {
-    portENTER_CRITICAL(&systemStateMux);
+    portTRY_ENTER_CRITICAL(&systemStateMux, pdMS_TO_TICKS(500));
     systemState = newState;
     portEXIT_CRITICAL(&systemStateMux);
 }

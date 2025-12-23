@@ -35,7 +35,6 @@ void publishLog(const char *tag, const char *msg)
     doc["id"] = deviceId;
     doc["tag"] = tag;
     doc["msg"] = msg;
-    doc["ts"] = millis();
 
     if (doc.overflowed() || measureJson(doc) >= MQTT_PAYLOAD_MAX)
     {
@@ -53,9 +52,16 @@ bool connMqtt()
     char msg[DISPLAY_MSG_MAX_LEN];
 
     short int dots = 0;
+    const TickType_t start = xTaskGetTickCount();
+    const TickType_t timeout = pdMS_TO_TICKS(MQTT_TIMEOUT_MS);
 
     while (!mqtt.connected())
     {
+        if ((WiFi.status() != WL_CONNECTED) || (xTaskGetTickCount() - start > timeout))
+        {
+            return false;
+        }
+
         dots = (dots + 1) % 4;
 
         snprintf(msg, sizeof(msg),
@@ -78,10 +84,9 @@ bool connMqtt()
 
         mqtt.connect(deviceId);
 
-        vTaskDelay(pdMS_TO_TICKS(CONN_WAIT_INTERVAL_MS));
+        vTaskDelay(pdMS_TO_TICKS(500));
     }
 
-    mqtt.publish(topicStatus, "ONLINE", true);
     mqtt.subscribe(topicCmd, 1);
 
     return true;
@@ -158,22 +163,25 @@ void TaskMqttCode(void *pvParameters)
 
     while (systemState != SystemState::SLEEPING)
     {
-        if (systemState == SystemState::NET_ON && !mqtt.connected())
+        bool isConnected = mqtt.connected();
+
+        if (!isConnected && systemState == SystemState::NET_ON)
         {
             setSystemState(SystemState::MQTT_OFF);
 
-            if (connMqtt())
+            if (!connMqtt())
             {
-                mqtt.publish(topicStatus, "READY");
-                setSystemState(SystemState::READY);
+                vTaskDelay(tickDelay);
+                continue;
             }
 
-            continue;
+            mqtt.publish(topicStatus, "READY", true);
+            setSystemState(SystemState::READY);
         }
 
         mqtt.loop();
 
-        if (xQueueReceive(mqttQueue, lastMsg, 0) == pdTRUE)
+        if (isConnected && xQueueReceive(mqttQueue, lastMsg, 0) == pdTRUE)
         {
             mqtt.publish(topicLogs, lastMsg, false);
         }
@@ -181,7 +189,7 @@ void TaskMqttCode(void *pvParameters)
         vTaskDelay(tickDelay);
     }
 
-    mqtt.publish(topicStatus, "SLEEPING");
+    mqtt.publish(topicStatus, "SLEEPING", true);
 
     changeTaskCount(-1);
     vTaskDelete(nullptr);

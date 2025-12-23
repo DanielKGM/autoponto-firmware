@@ -24,8 +24,17 @@ bool connWifi()
 
     short int dots = 0;
 
+    const TickType_t start = xTaskGetTickCount();
+    const TickType_t timeout = pdMS_TO_TICKS(WIFI_TIMEOUT_MS);
+
     while (WiFi.status() != WL_CONNECTED)
     {
+        if (xTaskGetTickCount() - start > timeout)
+        {
+            sendDisplayMessage("WiFi falhou!", 2000);
+            return false;
+        }
+
         dots = (dots + 1) % 4;
 
         snprintf(msg, sizeof(msg),
@@ -34,7 +43,7 @@ bool connWifi()
 
         sendDisplayMessage(msg);
 
-        vTaskDelay(pdMS_TO_TICKS(CONN_WAIT_INTERVAL_MS));
+        vTaskDelay(pdMS_TO_TICKS(500));
     }
 
     return true;
@@ -63,16 +72,17 @@ void TaskNetworkCode(void *pvParameters)
 
     while (systemState != SystemState::SLEEPING)
     {
-        if (!WiFi.isConnected())
+        if (WiFi.status() != WL_CONNECTED)
         {
             setSystemState(SystemState::NET_OFF);
 
-            if (connWifi())
+            if (!connWifi())
             {
-                setSystemState(SystemState::NET_ON);
+                vTaskDelay(tickDelay);
+                continue;
             }
 
-            continue;
+            setSystemState(SystemState::NET_ON);
         }
 
         if (it_cnt++ > send_its)
