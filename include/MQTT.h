@@ -20,3 +20,4 @@ bool initMqtt();
 void publishLog(const char *tag, const char *msg);
 void mqttCallback(char *topic, byte *payload, unsigned int length);
 void TaskMqttCode(void *pvParameters);
+void publishSystemStats();

@@ -8,9 +8,6 @@
 #include "soc/rtc_cntl_reg.h"
 
 const TickType_t ticks_to_sleep = pdMS_TO_TICKS(SLEEP_TIMEOUT_MS);
-TaskHandle_t TaskDisplay;
-TaskHandle_t TaskNetwork;
-TaskHandle_t TaskMqtt;
 
 void initID()
 {

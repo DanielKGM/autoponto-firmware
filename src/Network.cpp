@@ -66,9 +66,9 @@ void TaskNetworkCode(void *pvParameters)
     }
 
     const TickType_t tickDelay = pdMS_TO_TICKS(100);
-    const TickType_t ticks_to_send = pdMS_TO_TICKS(POST_INTERVAL_MS);
-    const unsigned short send_its = ticks_to_send / tickDelay;
-    unsigned short it_cnt = 0;
+
+    TickType_t lastPostTick = 0;
+    const TickType_t postInterval = pdMS_TO_TICKS(POST_INTERVAL_MS);
 
     while (systemState != SystemState::SLEEPING)
     {
@@ -85,14 +85,10 @@ void TaskNetworkCode(void *pvParameters)
             setSystemState(SystemState::NET_ON);
         }
 
-        if (it_cnt++ > send_its)
+        if ((xTaskGetTickCount() - lastPostTick) > postInterval && systemState == SystemState::READY)
         {
-            it_cnt = 0;
-
-            if (systemState == SystemState::READY)
-            {
-                sendFrame();
-            }
+            lastPostTick = xTaskGetTickCount();
+            sendFrame();
         }
 
         vTaskDelay(tickDelay);

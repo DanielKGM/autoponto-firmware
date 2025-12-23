@@ -10,7 +10,7 @@ volatile bool loggerFlag;
 char topicCmd[MQTT_TOPIC_SIZE];
 char topicLogs[MQTT_TOPIC_SIZE];
 char topicStatus[MQTT_TOPIC_SIZE];
-QueueHandle_t mqttQueue = xQueueCreate(5, sizeof(MQTT_PAYLOAD_MAX));
+QueueHandle_t mqttQueue = xQueueCreate(5, MQTT_PAYLOAD_MAX);
 
 void buildTopics()
 {
@@ -45,6 +45,41 @@ void publishLog(const char *tag, const char *msg)
     serializeJson(doc, out, sizeof(out));
 
     xQueueSend(mqttQueue, out, 0);
+}
+
+void publishSystemStats()
+{
+    JsonDocument doc;
+
+    doc["state"] = static_cast<uint8_t>(systemState);
+
+    doc["rssi"] = WiFi.isConnected() ? WiFi.RSSI() : 0;
+
+    doc["heap_free"] = ESP.getFreeHeap();
+    doc["heap_min"] = ESP.getMinFreeHeap();
+
+    if (psramFound())
+    {
+        doc["psram_free"] = ESP.getFreePsram();
+        doc["psram_total"] = ESP.getPsramSize();
+    }
+
+    doc["stk_disp"] = TaskDisplay ? uxTaskGetStackHighWaterMark(TaskDisplay) : 0;
+    doc["stk_net"] = TaskNetwork ? uxTaskGetStackHighWaterMark(TaskNetwork) : 0;
+    doc["stk_mqtt"] = TaskMqtt ? uxTaskGetStackHighWaterMark(TaskMqtt) : 0;
+
+    TaskHandle_t loopTask = xTaskGetHandle("loopTask");
+    doc["stk_loop"] = loopTask ? uxTaskGetStackHighWaterMark(loopTask) : 0;
+
+    if (doc.overflowed())
+    {
+        return;
+    }
+
+    static char msg[MQTT_PAYLOAD_MAX];
+    serializeJson(doc, msg, sizeof(msg));
+
+    publishLog("stats", msg);
 }
 
 bool connMqtt()
@@ -151,8 +186,9 @@ void TaskMqttCode(void *pvParameters)
     initMqtt();
 
     const TickType_t tickDelay = pdMS_TO_TICKS(100);
-
     char lastMsg[MQTT_PAYLOAD_MAX];
+    TickType_t lastStatsTick = 0;
+    const TickType_t logInterval = pdMS_TO_TICKS(MQTT_LOG_INTERVAL_MS);
 
     while (systemState != SystemState::SLEEPING)
     {
@@ -172,13 +208,21 @@ void TaskMqttCode(void *pvParameters)
             setSystemState(SystemState::READY);
         }
 
-        mqtt.loop();
-
-        if (isConnected && xQueueReceive(mqttQueue, lastMsg, 0) == pdTRUE)
+        if (loggerFlag && isConnected)
         {
-            mqtt.publish(topicLogs, lastMsg, false);
+            if (xQueueReceive(mqttQueue, lastMsg, 0) == pdTRUE)
+            {
+                mqtt.publish(topicLogs, lastMsg, false);
+            }
+
+            if ((xTaskGetTickCount() - lastStatsTick) > logInterval)
+            {
+                lastStatsTick = xTaskGetTickCount();
+                publishSystemStats();
+            }
         }
 
+        mqtt.loop();
         vTaskDelay(tickDelay);
     }
 

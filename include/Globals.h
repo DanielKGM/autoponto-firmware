@@ -31,3 +31,7 @@ extern portMUX_TYPE tasksAliveMux;
 
 void changeTaskCount(int delta);
 void setSystemState(SystemState newState);
+
+extern TaskHandle_t TaskDisplay;
+extern TaskHandle_t TaskNetwork;
+extern TaskHandle_t TaskMqtt;

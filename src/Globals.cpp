@@ -6,6 +6,9 @@ char deviceId[13];
 volatile int tasksAlive = 0;
 portMUX_TYPE tasksAliveMux = portMUX_INITIALIZER_UNLOCKED;
 portMUX_TYPE systemStateMux = portMUX_INITIALIZER_UNLOCKED;
+TaskHandle_t TaskDisplay;
+TaskHandle_t TaskNetwork;
+TaskHandle_t TaskMqtt;
 
 void changeTaskCount(int delta)
 {
