@@ -48,11 +48,11 @@ bool startCamera()
             "Falha ao iniciar camera! Tentando novamente... (%d/5)",
             retry_count);
 
-        showText(msg, true);
+        sendDisplayMessage(msg);
 
         if (retry_count > 5)
         {
-            showText("Falha ao iniciar camera! Reinicie o dispositivo.", true);
+            sendDisplayMessage("Falha ao iniciar camera! Reinicie o dispositivo.", true);
             return false;
         }
 

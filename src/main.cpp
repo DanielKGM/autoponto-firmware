@@ -43,15 +43,6 @@ void setup()
     initTFT();
     initSprite();
     initCamera();
-    initWifi();
-    initMqtt();
-
-    if (!startCamera())
-    {
-        return;
-    }
-
-    setSystemState(SystemState::READY);
 
     xTaskCreatePinnedToCore(
         TaskDisplayCode,
@@ -61,6 +52,11 @@ void setup()
         1,
         &TaskDisplay,
         APP_CPU_NUM);
+
+    if (!startCamera())
+    {
+        return;
+    }
 
     xTaskCreatePinnedToCore(
         TaskNetworkCode,
@@ -94,7 +90,7 @@ void loop()
         // setSystemState(SystemState::SLEEPING);
     }
 
-    if (currentState == SystemState::SLEEPING && tasksAlive == 0)
+    if (systemState == SystemState::SLEEPING && tasksAlive == 0)
     {
         // sleep();
     }

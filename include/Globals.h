@@ -9,17 +9,21 @@ struct DisplayMessage
     TickType_t duration;
 };
 
+// BOOTING -> NET_OFF -> NET_ON -> MQTT_OFF -> READY -> SLEEPING
+
 enum class SystemState
 {
     BOOTING,
+    NET_ON,
+    NET_OFF,
+    MQTT_OFF,
     READY,
-    DISCONNECTED,
     SLEEPING
 };
 
 extern char deviceId[13];
 
-extern volatile SystemState currentState;
+extern volatile SystemState systemState;
 extern portMUX_TYPE systemStateMux;
 
 extern volatile int tasksAlive;

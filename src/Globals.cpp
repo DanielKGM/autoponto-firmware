@@ -1,6 +1,6 @@
 #include "Globals.h"
 
-volatile SystemState currentState;
+volatile SystemState systemState;
 char deviceId[13];
 
 volatile int tasksAlive = 0;
@@ -17,6 +17,6 @@ void changeTaskCount(int delta)
 void setSystemState(SystemState newState)
 {
     portENTER_CRITICAL(&systemStateMux);
-    currentState = newState;
+    systemState = newState;
     portEXIT_CRITICAL(&systemStateMux);
 }

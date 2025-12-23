@@ -96,7 +96,7 @@ void TaskDisplayCode(void *pvParameters)
 
     const TickType_t tickDelay = pdMS_TO_TICKS(50);
 
-    while (currentState != SystemState::SLEEPING)
+    while (systemState != SystemState::SLEEPING)
     {
         TickType_t now = xTaskGetTickCount();
 
@@ -112,7 +112,7 @@ void TaskDisplayCode(void *pvParameters)
             showText(msg.text, true);
         }
 
-        if (!hasMessage && currentState == SystemState::READY)
+        if (!hasMessage && systemState == SystemState::READY)
         {
             showCamFrame(true);
         }

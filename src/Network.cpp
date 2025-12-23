@@ -51,28 +51,32 @@ void TaskNetworkCode(void *pvParameters)
 {
     changeTaskCount(1);
 
+    initWifi();
+
     const TickType_t tickDelay = pdMS_TO_TICKS(100);
     const TickType_t ticks_to_send = pdMS_TO_TICKS(POST_INTERVAL_MS);
     const unsigned short send_its = ticks_to_send / tickDelay;
     unsigned short it_cnt = 0;
 
-    while (currentState != SystemState::SLEEPING)
+    while (systemState != SystemState::SLEEPING)
     {
         if (!WiFi.isConnected())
         {
-            setSystemState(SystemState::DISCONNECTED);
+            setSystemState(SystemState::NET_OFF);
+
             if (connWifi())
             {
-                setSystemState(SystemState::READY);
-                continue;
+                setSystemState(SystemState::NET_ON);
             }
+
+            continue;
         }
 
         if (it_cnt++ > send_its)
         {
             it_cnt = 0;
 
-            if (currentState == SystemState::READY)
+            if (systemState == SystemState::READY)
             {
                 sendFrame();
             }

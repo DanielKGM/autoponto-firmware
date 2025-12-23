@@ -50,6 +50,9 @@ bool connMqtt()
         vTaskDelay(pdMS_TO_TICKS(CONN_WAIT_INTERVAL_MS));
     }
 
+    mqtt.publish(topicStatus, "ONLINE", true);
+    mqtt.subscribe(topicCmd, 1);
+
     return true;
 }
 
@@ -111,21 +114,21 @@ void TaskMqttCode(void *pvParameters)
 {
     changeTaskCount(1);
 
-    mqtt.publish(topicStatus, "ONLINE", true);
-    mqtt.subscribe(topicCmd, 1);
+    initMqtt();
+    const TickType_t tickDelay = pdMS_TO_TICKS(200);
 
-    const TickType_t tickDelay = pdMS_TO_TICKS(100);
-
-    while (currentState != SystemState::SLEEPING)
+    while (systemState != SystemState::SLEEPING)
     {
-        if (!mqtt.connected())
+        if (systemState == SystemState::NET_ON && !mqtt.connected())
         {
-            setSystemState(SystemState::DISCONNECTED);
+            setSystemState(SystemState::MQTT_OFF);
+
             if (connMqtt())
             {
                 setSystemState(SystemState::READY);
-                continue;
             }
+
+            continue;
         }
 
         mqtt.loop();
