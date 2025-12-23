@@ -11,7 +11,6 @@ const TickType_t ticks_to_sleep = pdMS_TO_TICKS(SLEEP_TIMEOUT_MS);
 TaskHandle_t TaskDisplay;
 TaskHandle_t TaskNetwork;
 TaskHandle_t TaskMqtt;
-TaskHandle_t loopTaskHandle;
 
 void initID()
 {

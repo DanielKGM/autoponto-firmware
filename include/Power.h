@@ -1,6 +1,7 @@
 #pragma once
 #include "driver/rtc_io.h"
 #include "esp_camera.h"
+#include "Arduino.h"
 
 extern volatile TickType_t lastSensorTick;
 extern volatile bool sensorTriggered;

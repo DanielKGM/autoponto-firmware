@@ -31,7 +31,7 @@ void publishLog(const char *tag, const char *msg)
         return;
     }
 
-    StaticJsonDocument<128> doc;
+    JsonDocument doc;
     doc["id"] = deviceId;
     doc["tag"] = tag;
     doc["msg"] = msg;
@@ -64,6 +64,7 @@ bool connMqtt()
 
         sendDisplayMessage(msg);
 
+        /*
         mqtt.connect(
             deviceId,
             MQTT_USER,
@@ -73,6 +74,9 @@ bool connMqtt()
             true,
             "OFFLINE",
             true);
+        */
+
+        mqtt.connect(deviceId);
 
         vTaskDelay(pdMS_TO_TICKS(CONN_WAIT_INTERVAL_MS));
     }
@@ -119,14 +123,14 @@ void setLogFlag(bool value)
 
 void mqttCallback(char *topic, byte *payload, unsigned int length)
 {
-    StaticJsonDocument<128> doc;
+    JsonDocument doc;
 
     if (deserializeJson(doc, payload, length))
     {
         return;
     }
 
-    if (doc.containsKey("log"))
+    if (doc["log"].is<bool>())
     {
         bool newValue = doc["log"];
 
@@ -136,7 +140,7 @@ void mqttCallback(char *topic, byte *payload, unsigned int length)
         }
     }
 
-    if (doc.containsKey("auth"))
+    if (doc["auth"].is<bool>())
     {
         setBuzzerTriggered(doc["auth"]);
     }
