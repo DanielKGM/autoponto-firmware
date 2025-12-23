@@ -11,6 +11,7 @@ const TickType_t ticks_to_sleep = pdMS_TO_TICKS(SLEEP_TIMEOUT_MS);
 TaskHandle_t TaskDisplay;
 TaskHandle_t TaskNetwork;
 TaskHandle_t TaskMqtt;
+TaskHandle_t loopTaskHandle;
 
 void initID()
 {
@@ -29,6 +30,13 @@ void initID()
     }
 
     prefs.end();
+}
+
+void positiveFB()
+{
+    digitalWrite(POSITIVE_FB_PIN, HIGH);
+    vTaskDelay(pdMS_TO_TICKS(POSITIVE_FB_DURATION_MS));
+    digitalWrite(POSITIVE_FB_PIN, LOW);
 }
 
 void setup()
@@ -83,6 +91,12 @@ void loop()
     {
         sensorTriggered = false;
         lastSensorTick = xTaskGetTickCount();
+    }
+
+    if (buzzerTriggered)
+    {
+        setBuzzerTriggered(false);
+        positiveFB();
     }
 
     if ((xTaskGetTickCount() - lastSensorTick) > ticks_to_sleep)

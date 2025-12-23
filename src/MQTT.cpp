@@ -2,23 +2,50 @@
 #include "Globals.h"
 #include "Network.h"
 #include "Display.h"
+#include "Power.h"
 
 PubSubClient mqtt;
 volatile bool loggerFlag;
-char topicStatus[17];
-char topicCmd[17];
-char topicLogs[17];
+
+char topicCmd[MQTT_TOPIC_SIZE];
+char topicLogs[MQTT_TOPIC_SIZE];
+char topicStatus[MQTT_TOPIC_SIZE];
+QueueHandle_t mqttQueue = xQueueCreate(5, sizeof(MQTT_PAYLOAD_MAX));
 
 void buildTopics()
 {
-    snprintf(topicStatus, sizeof(topicStatus),
-             "%s/sts", deviceId);
-
     snprintf(topicCmd, sizeof(topicCmd),
-             "%s/cmd", deviceId);
+             "cmd/%s", deviceId);
 
     snprintf(topicLogs, sizeof(topicLogs),
-             "%s/log", deviceId);
+             "log/%s", deviceId);
+
+    snprintf(topicStatus, sizeof(topicStatus),
+             "sts/%s", deviceId);
+}
+
+void publishLog(const char *tag, const char *msg)
+{
+    if (!loggerFlag || !mqttQueue)
+    {
+        return;
+    }
+
+    StaticJsonDocument<128> doc;
+    doc["id"] = deviceId;
+    doc["tag"] = tag;
+    doc["msg"] = msg;
+    doc["ts"] = millis();
+
+    if (doc.overflowed() || measureJson(doc) >= MQTT_PAYLOAD_MAX)
+    {
+        return;
+    }
+
+    char out[MQTT_PAYLOAD_MAX];
+    serializeJson(doc, out, sizeof(out));
+
+    xQueueSend(mqttQueue, out, 0);
 }
 
 bool connMqtt()
@@ -108,6 +135,11 @@ void mqttCallback(char *topic, byte *payload, unsigned int length)
             setLogFlag(newValue);
         }
     }
+
+    if (doc.containsKey("auth"))
+    {
+        setBuzzerTriggered(doc["auth"]);
+    }
 }
 
 void TaskMqttCode(void *pvParameters)
@@ -117,6 +149,8 @@ void TaskMqttCode(void *pvParameters)
     initMqtt();
     const TickType_t tickDelay = pdMS_TO_TICKS(200);
 
+    char lastMsg[MQTT_PAYLOAD_MAX];
+
     while (systemState != SystemState::SLEEPING)
     {
         if (systemState == SystemState::NET_ON && !mqtt.connected())
@@ -125,6 +159,7 @@ void TaskMqttCode(void *pvParameters)
 
             if (connMqtt())
             {
+                mqtt.publish(topicStatus, "READY");
                 setSystemState(SystemState::READY);
             }
 
@@ -132,8 +167,16 @@ void TaskMqttCode(void *pvParameters)
         }
 
         mqtt.loop();
+
+        if (xQueueReceive(mqttQueue, lastMsg, 0) == pdTRUE)
+        {
+            mqtt.publish(topicLogs, lastMsg, false);
+        }
+
         vTaskDelay(tickDelay);
     }
+
+    mqtt.publish(topicStatus, "SLEEPING");
 
     changeTaskCount(-1);
     vTaskDelete(nullptr);

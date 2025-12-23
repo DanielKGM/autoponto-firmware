@@ -3,10 +3,19 @@
 
 volatile TickType_t lastSensorTick = xTaskGetTickCount();
 volatile bool sensorTriggered = false;
+volatile bool buzzerTriggered = false;
+portMUX_TYPE buzzerMux = portMUX_INITIALIZER_UNLOCKED;
 
 void IRAM_ATTR handlePIRInterrupt()
 {
     sensorTriggered = true;
+}
+
+void setBuzzerTriggered(bool value)
+{
+    portENTER_CRITICAL(&buzzerMux);
+    buzzerTriggered = value;
+    portEXIT_CRITICAL(&buzzerMux);
 }
 
 void initPins()
