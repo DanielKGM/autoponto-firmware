@@ -1,6 +1,13 @@
 #pragma once
 #include "Arduino.h"
 #include "Config.h"
+#include <Preferences.h>
+
+struct DisplayMessage
+{
+    char text[DISPLAY_MSG_MAX_LEN];
+    TickType_t duration;
+};
 
 enum class SystemState
 {
@@ -10,11 +17,13 @@ enum class SystemState
     SLEEPING
 };
 
-extern volatile SystemState current_state;
-extern portMUX_TYPE system_state_mux;
+extern char deviceId[13];
 
-extern volatile int tasks_alive;
-extern portMUX_TYPE tasks_alive_mux;
+extern volatile SystemState currentState;
+extern portMUX_TYPE systemStateMux;
+
+extern volatile int tasksAlive;
+extern portMUX_TYPE tasksAliveMux;
 
 void changeTaskCount(int delta);
-void setSystemState(SystemState new_state);
+void setSystemState(SystemState newState);

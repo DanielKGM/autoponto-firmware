@@ -43,7 +43,7 @@ void showText(const char *text, bool pushToDisplay)
     }
 }
 
-bool showCamFrame(bool push_sprite)
+bool showCamFrame(bool pushSprite)
 {
     camera_fb_t *fb = esp_camera_fb_get();
 
@@ -63,7 +63,7 @@ bool showCamFrame(bool push_sprite)
 
     esp_camera_fb_return(fb);
 
-    if (converted == 1 && push_sprite)
+    if (converted == 1 && pushSprite)
     {
         spr.pushSprite(0, 0);
     }
@@ -71,7 +71,7 @@ bool showCamFrame(bool push_sprite)
     return converted == 1;
 }
 
-bool sendDisplayMessage(const char *text, unsigned long duration_ms)
+bool sendDisplayMessage(const char *text, unsigned long durationMs)
 {
     if (!messageQueue)
     {
@@ -80,7 +80,7 @@ bool sendDisplayMessage(const char *text, unsigned long duration_ms)
 
     DisplayMessage msg{};
     strncpy(msg.text, text, DISPLAY_MSG_MAX_LEN - 1);
-    msg.duration = pdMS_TO_TICKS(duration_ms);
+    msg.duration = pdMS_TO_TICKS(durationMs);
 
     return xQueueSendToBack(messageQueue, &msg, 0) == pdPASS;
 }
@@ -96,7 +96,7 @@ void TaskDisplayCode(void *pvParameters)
 
     const TickType_t tickDelay = pdMS_TO_TICKS(50);
 
-    while (current_state != SystemState::SLEEPING)
+    while (currentState != SystemState::SLEEPING)
     {
         TickType_t now = xTaskGetTickCount();
 
@@ -112,7 +112,7 @@ void TaskDisplayCode(void *pvParameters)
             showText(msg.text, true);
         }
 
-        if (!hasMessage && current_state == SystemState::READY)
+        if (!hasMessage && currentState == SystemState::READY)
         {
             showCamFrame(true);
         }

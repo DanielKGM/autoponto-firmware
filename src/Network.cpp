@@ -1,7 +1,8 @@
 #include "Display.h"
 #include "Network.h"
 #include "Globals.h"
-#include "Secrets.h"
+
+WiFiClient wifiClient;
 
 bool sendFrame()
 {
@@ -20,7 +21,6 @@ bool connWifi()
     WiFi.begin(WIFI_SSID, WIFI_PASS);
 
     char msg[DISPLAY_MSG_MAX_LEN];
-    strcpy(msg, "Conectando ao WiFi");
 
     short int dots = 0;
 
@@ -56,13 +56,13 @@ void TaskNetworkCode(void *pvParameters)
     const unsigned short send_its = ticks_to_send / tickDelay;
     unsigned short it_cnt = 0;
 
-    while (current_state != SystemState::SLEEPING)
+    while (currentState != SystemState::SLEEPING)
     {
         if (++it_cnt > send_its)
         {
             it_cnt = 0;
 
-            if (current_state == SystemState::READY)
+            if (currentState == SystemState::READY)
             {
                 sendFrame();
             }

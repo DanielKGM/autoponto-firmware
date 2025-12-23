@@ -1,10 +1,9 @@
 #pragma once
-#include <Arduino.h>
 #include "driver/rtc_io.h"
 #include "esp_camera.h"
 
-extern volatile TickType_t last_PIR_tick;
-extern volatile bool PIR_triggered;
+extern volatile TickType_t lastSensorTick;
+extern volatile bool sensorTriggered;
 
 void initSleep();
 void initPins();

@@ -1,5 +1,5 @@
 .pio
 .vscode
 temp
-include/Secrets.h
+include/Config.h
 compile_commands.json

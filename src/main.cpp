@@ -4,11 +4,31 @@
 #include "Camera.h"
 #include "Display.h"
 #include "Network.h"
+#include "MQTT.h"
 #include "soc/rtc_cntl_reg.h"
 
 const TickType_t ticks_to_sleep = pdMS_TO_TICKS(SLEEP_TIMEOUT_MS);
 TaskHandle_t TaskDisplay;
 TaskHandle_t TaskNetwork;
+
+void initID()
+{
+    Preferences prefs;
+    prefs.begin("system", false);
+
+    if (prefs.getString("deviceId", deviceId, sizeof(deviceId)) == 0)
+    {
+        uint64_t mac = ESP.getEfuseMac();
+
+        snprintf(deviceId, sizeof(deviceId), "%04X%08X",
+                 (uint16_t)(mac >> 32),
+                 (uint32_t)mac);
+
+        prefs.putString("deviceId", deviceId);
+    }
+
+    prefs.end();
+}
 
 void setup()
 {
@@ -16,51 +36,55 @@ void setup()
 
     setSystemState(SystemState::BOOTING);
 
+    initID();
     initPins();
     initSleep();
     initTFT();
     initSprite();
     initCamera();
     initWifi();
+    initMqtt();
 
-    if (startCamera())
+    if (!startCamera())
     {
-        setSystemState(SystemState::READY);
-
-        xTaskCreatePinnedToCore(
-            TaskDisplayCode,
-            "TaskDisplay",
-            12288,
-            nullptr,
-            1,
-            &TaskDisplay,
-            APP_CPU_NUM);
-
-        xTaskCreatePinnedToCore(
-            TaskNetworkCode,
-            "TaskNetwork",
-            8192,
-            nullptr,
-            1,
-            &TaskNetwork,
-            PRO_CPU_NUM);
+        return;
     }
+
+    setSystemState(SystemState::READY);
+
+    xTaskCreatePinnedToCore(
+        TaskDisplayCode,
+        "TaskDisplay",
+        12288,
+        nullptr,
+        1,
+        &TaskDisplay,
+        APP_CPU_NUM);
+
+    xTaskCreatePinnedToCore(
+        TaskNetworkCode,
+        "TaskNetwork",
+        8192,
+        nullptr,
+        1,
+        &TaskNetwork,
+        PRO_CPU_NUM);
 }
 
 void loop()
 {
-    if (PIR_triggered)
+    if (sensorTriggered)
     {
-        PIR_triggered = false;
-        last_PIR_tick = xTaskGetTickCount();
+        sensorTriggered = false;
+        lastSensorTick = xTaskGetTickCount();
     }
 
-    if ((xTaskGetTickCount() - last_PIR_tick) > ticks_to_sleep)
+    if ((xTaskGetTickCount() - lastSensorTick) > ticks_to_sleep)
     {
         // setSystemState(SystemState::SLEEPING);
     }
 
-    if (current_state == SystemState::SLEEPING && tasks_alive == 0)
+    if (currentState == SystemState::SLEEPING && tasksAlive == 0)
     {
         // sleep();
     }

@@ -1,21 +1,22 @@
 #include "Globals.h"
 
-volatile SystemState current_state;
+volatile SystemState currentState;
+char deviceId[13];
 
-volatile int tasks_alive = 0;
-portMUX_TYPE tasks_alive_mux = portMUX_INITIALIZER_UNLOCKED;
-portMUX_TYPE system_state_mux = portMUX_INITIALIZER_UNLOCKED;
+volatile int tasksAlive = 0;
+portMUX_TYPE tasksAliveMux = portMUX_INITIALIZER_UNLOCKED;
+portMUX_TYPE systemStateMux = portMUX_INITIALIZER_UNLOCKED;
 
 void changeTaskCount(int delta)
 {
-    portENTER_CRITICAL(&tasks_alive_mux);
-    tasks_alive = tasks_alive + delta;
-    portEXIT_CRITICAL(&tasks_alive_mux);
+    portENTER_CRITICAL(&tasksAliveMux);
+    tasksAlive = tasksAlive + delta;
+    portEXIT_CRITICAL(&tasksAliveMux);
 }
 
-void setSystemState(SystemState new_state)
+void setSystemState(SystemState newState)
 {
-    portENTER_CRITICAL(&system_state_mux);
-    current_state = new_state;
-    portEXIT_CRITICAL(&system_state_mux);
+    portENTER_CRITICAL(&systemStateMux);
+    currentState = newState;
+    portEXIT_CRITICAL(&systemStateMux);
 }
