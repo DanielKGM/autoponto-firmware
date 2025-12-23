@@ -1,4 +1,5 @@
 #include "Display.h"
+#include "Config.h"
 #include "Network.h"
 #include "Globals.h"
 
@@ -11,9 +12,31 @@ bool sendFrame()
         return false;
     }
 
-    sendDisplayMessage("ENVIADO", 2000);
+    FrameBuffer frame;
 
-    return true;
+    if (xQueueReceive(frameQueue, &frame, pdMS_TO_TICKS(1000)) != pdTRUE)
+    {
+        return false;
+    }
+
+    HTTPClient http;
+    http.setTimeout(REST_TIMEOUT_MS);
+    http.begin(REST_URL);
+
+    http.addHeader("Content-Type", "image/jpeg");
+    http.addHeader("X-Device-Id", deviceId);
+    http.addHeader("X-Auth", REST_PASS);
+
+    int resp = http.POST(frame.data, frame.len);
+    http.end();
+    free(frame.data);
+
+    if (resp != HTTP_CODE_OK)
+    {
+        sendDisplayMessage("Erro ao enviar captura!", 1000);
+    }
+
+    return resp != HTTP_CODE_OK;
 }
 
 bool connWifi()
@@ -67,11 +90,15 @@ void TaskNetworkCode(void *pvParameters)
 
     const TickType_t tickDelay = pdMS_TO_TICKS(100);
 
-    TickType_t lastPostTick = 0;
-    const TickType_t postInterval = pdMS_TO_TICKS(POST_INTERVAL_MS);
+    TickType_t lastReqTick = 0;
+
+    const TickType_t reqInterval = pdMS_TO_TICKS(REST_POST_INTERVAL_MS);
+    const TickType_t waitInterval = pdMS_TO_TICKS(RESPONSE_WAIT_TIMEOUT_MS);
 
     while (systemState != SystemState::SLEEPING)
     {
+        TickType_t now = xTaskGetTickCount();
+
         if (WiFi.status() != WL_CONNECTED)
         {
             setSystemState(SystemState::NET_OFF);
@@ -85,10 +112,24 @@ void TaskNetworkCode(void *pvParameters)
             setSystemState(SystemState::NET_ON);
         }
 
-        if ((xTaskGetTickCount() - lastPostTick) > postInterval && systemState == SystemState::READY)
+        if (systemState == SystemState::READY && (now - lastReqTick) > reqInterval)
         {
-            lastPostTick = xTaskGetTickCount();
-            sendFrame();
+            if (TaskDisplay)
+            {
+                xTaskNotifyGive(TaskDisplay);
+            }
+
+            lastReqTick = now;
+
+            if (sendFrame())
+            {
+                setSystemState(SystemState::WAITING_SERVER);
+            }
+        }
+
+        if (systemState == SystemState::WAITING_SERVER && (now - lastReqTick) > waitInterval)
+        {
+            setSystemState(SystemState::READY);
         }
 
         vTaskDelay(tickDelay);

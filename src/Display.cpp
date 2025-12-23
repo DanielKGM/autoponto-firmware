@@ -1,10 +1,18 @@
 #include "Display.h"
 #include "Globals.h"
+#include "Config.h"
+
+using DisplayMessage = struct
+{
+    char text[DISPLAY_MSG_MAX_LEN];
+    TickType_t duration;
+};
 
 JPEGDEC decoder;
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite spr = TFT_eSprite(&tft);
 QueueHandle_t messageQueue = xQueueCreate(5, sizeof(DisplayMessage));
+QueueHandle_t frameQueue = xQueueCreate(1, sizeof(FrameBuffer));
 
 int drawMCUs(JPEGDRAW *pDraw)
 {
@@ -43,7 +51,7 @@ void showText(const char *text, bool pushToDisplay)
     }
 }
 
-bool showCamFrame(bool pushSprite)
+bool showCamFrame(bool pushSprite, bool captureFrame = false)
 {
     camera_fb_t *fb = esp_camera_fb_get();
 
@@ -52,7 +60,28 @@ bool showCamFrame(bool pushSprite)
         return false;
     }
 
-    int converted = 0;
+    // Buffer PSRAM
+    uint8_t *fbCopy = captureFrame ? (uint8_t *)ps_malloc(fb->len) : nullptr;
+
+    if (fbCopy)
+    {
+        memcpy(fbCopy, fb->buf, fb->len);
+
+        FrameBuffer frame;
+        frame.len = fb->len;
+        frame.data = fbCopy;
+
+        FrameBuffer old;
+        if (xQueueReceive(frameQueue, &old, 0) == pdTRUE)
+        {
+            free(old.data);
+        }
+
+        xQueueOverwrite(frameQueue, &frame);
+    }
+
+    // Display
+    bool converted = false;
 
     if (decoder.openRAM(fb->buf, fb->len, drawMCUs))
     {
@@ -63,12 +92,12 @@ bool showCamFrame(bool pushSprite)
 
     esp_camera_fb_return(fb);
 
-    if (converted == 1 && pushSprite)
+    if (converted && pushSprite)
     {
         spr.pushSprite(0, 0);
     }
 
-    return converted == 1;
+    return converted;
 }
 
 bool sendDisplayMessage(const char *text, unsigned long durationMs)
@@ -114,7 +143,7 @@ void TaskDisplayCode(void *pvParameters)
 
         if (!hasMessage && systemState == SystemState::READY)
         {
-            showCamFrame(true);
+            showCamFrame(true, ulTaskNotifyTake(pdTRUE, 0) > 0);
         }
 
         vTaskDelay(tickDelay);

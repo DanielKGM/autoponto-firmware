@@ -1,8 +1,11 @@
+#include "Config.h"
 #include "MQTT.h"
 #include "Globals.h"
 #include "Network.h"
 #include "Display.h"
 #include "Power.h"
+
+#include <ArduinoJson.h>
 
 PubSubClient mqtt;
 volatile bool loggerFlag;
@@ -99,7 +102,6 @@ bool connMqtt()
 
         sendDisplayMessage("Conectando ao Broker...");
 
-        /*
         mqtt.connect(
             deviceId,
             MQTT_USER,
@@ -109,9 +111,6 @@ bool connMqtt()
             true,
             "OFFLINE",
             true);
-        */
-
-        mqtt.connect(deviceId);
 
         vTaskDelay(pdMS_TO_TICKS(500));
     }
@@ -163,9 +162,11 @@ void mqttCallback(char *topic, byte *payload, unsigned int length)
         return;
     }
 
-    if (doc["auth"].is<bool>())
+    if (doc["auth"].is<bool>() && doc["auth"])
     {
-        setBuzzerTriggered(doc["auth"]);
+        setBuzzerTriggered(true);
+        sendDisplayMessage("Autenticado!", 2000);
+        setSystemState(SystemState::READY);
     }
 
     if (doc["log"].is<bool>())

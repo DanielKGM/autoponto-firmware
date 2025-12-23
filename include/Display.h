@@ -3,7 +3,15 @@
 #include <JPEGDEC.h>
 #include <TFT_eSPI.h>
 
+using FrameBuffer = struct
+{
+    uint8_t *data;
+    size_t len;
+};
+
 extern QueueHandle_t messageQueue;
+extern QueueHandle_t frameQueue;
+
 extern TFT_eSPI tft;
 extern TFT_eSprite spr;
 extern JPEGDEC decoder;

@@ -1,13 +1,6 @@
 #pragma once
 #include "Arduino.h"
-#include "Config.h"
 #include <Preferences.h>
-
-struct DisplayMessage
-{
-    char text[DISPLAY_MSG_MAX_LEN];
-    TickType_t duration;
-};
 
 // BOOTING -> NET_OFF -> NET_ON -> MQTT_OFF -> READY -> SLEEPING
 
@@ -18,6 +11,8 @@ enum class SystemState
     NET_OFF,
     MQTT_OFF,
     READY,
+    USER_PRESENT,
+    WAITING_SERVER,
     SLEEPING
 };
 

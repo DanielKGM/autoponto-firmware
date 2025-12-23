@@ -1,11 +1,10 @@
-#include <Arduino.h>
+#include "Config.h"
 #include "Globals.h"
 #include "Power.h"
 #include "Camera.h"
 #include "Display.h"
 #include "Network.h"
 #include "MQTT.h"
-#include "soc/rtc_cntl_reg.h"
 
 const TickType_t ticks_to_sleep = pdMS_TO_TICKS(SLEEP_TIMEOUT_MS);
 

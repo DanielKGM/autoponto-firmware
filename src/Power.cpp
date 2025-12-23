@@ -1,5 +1,6 @@
 #include "Power.h"
 #include "Globals.h"
+#include "Config.h"
 
 volatile TickType_t lastSensorTick = xTaskGetTickCount();
 volatile bool sensorTriggered = false;
