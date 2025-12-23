@@ -51,7 +51,6 @@ bool connMqtt()
 {
     char msg[DISPLAY_MSG_MAX_LEN];
 
-    short int dots = 0;
     const TickType_t start = xTaskGetTickCount();
     const TickType_t timeout = pdMS_TO_TICKS(MQTT_TIMEOUT_MS);
 
@@ -59,16 +58,11 @@ bool connMqtt()
     {
         if ((WiFi.status() != WL_CONNECTED) || (xTaskGetTickCount() - start > timeout))
         {
+            sendDisplayMessage("MQTT falhou!", 2000);
             return false;
         }
 
-        dots = (dots + 1) % 4;
-
-        snprintf(msg, sizeof(msg),
-                 "Conectando ao Broker%.*s",
-                 dots, "...");
-
-        sendDisplayMessage(msg);
+        sendDisplayMessage("Conectando ao Broker...");
 
         /*
         mqtt.connect(
@@ -88,7 +82,6 @@ bool connMqtt()
     }
 
     mqtt.subscribe(topicCmd, 1);
-
     return true;
 }
 
@@ -135,6 +128,11 @@ void mqttCallback(char *topic, byte *payload, unsigned int length)
         return;
     }
 
+    if (doc["auth"].is<bool>())
+    {
+        setBuzzerTriggered(doc["auth"]);
+    }
+
     if (doc["log"].is<bool>())
     {
         bool newValue = doc["log"];
@@ -143,11 +141,6 @@ void mqttCallback(char *topic, byte *payload, unsigned int length)
         {
             setLogFlag(newValue);
         }
-    }
-
-    if (doc["auth"].is<bool>())
-    {
-        setBuzzerTriggered(doc["auth"]);
     }
 }
 
@@ -165,7 +158,7 @@ void TaskMqttCode(void *pvParameters)
     {
         bool isConnected = mqtt.connected();
 
-        if (!isConnected && systemState == SystemState::NET_ON)
+        if (!isConnected && (systemState == SystemState::NET_ON || systemState == SystemState::MQTT_OFF))
         {
             setSystemState(SystemState::MQTT_OFF);
 
