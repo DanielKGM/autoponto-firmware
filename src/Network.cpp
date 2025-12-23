@@ -51,7 +51,10 @@ void TaskNetworkCode(void *pvParameters)
 {
     changeTaskCount(1);
 
-    initWifi();
+    if (initWifi())
+    {
+        setSystemState(SystemState::NET_ON);
+    }
 
     const TickType_t tickDelay = pdMS_TO_TICKS(100);
     const TickType_t ticks_to_send = pdMS_TO_TICKS(POST_INTERVAL_MS);

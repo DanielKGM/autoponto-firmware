@@ -96,7 +96,7 @@ bool initMqtt()
     mqtt.setServer(MQTT_URL, MQTT_PORT);
     mqtt.setCallback(mqttCallback);
 
-    return connMqtt();
+    return true;
 }
 
 void loadLogFlag()
@@ -151,7 +151,8 @@ void TaskMqttCode(void *pvParameters)
     changeTaskCount(1);
 
     initMqtt();
-    const TickType_t tickDelay = pdMS_TO_TICKS(200);
+
+    const TickType_t tickDelay = pdMS_TO_TICKS(100);
 
     char lastMsg[MQTT_PAYLOAD_MAX];
 
