@@ -96,11 +96,11 @@ bool connMqtt()
     {
         if ((WiFi.status() != WL_CONNECTED) || (xTaskGetTickCount() - start > timeout))
         {
-            sendDisplayMessage("MQTT falhou!", 2000);
+            sendDisplayMessage("MQTT falhou!", 2000, &ICON_SAD);
             return false;
         }
 
-        sendDisplayMessage("Conectando ao Broker...");
+        sendDisplayMessage("Conectando ao Broker...", 0, &ICON_SERVER);
 
         mqtt.connect(
             deviceId,
@@ -195,7 +195,7 @@ void TaskMqttCode(void *pvParameters)
     {
         bool isConnected = mqtt.connected();
 
-        if (!isConnected && (systemState == SystemState::NET_ON || systemState == SystemState::MQTT_OFF))
+        if (!isConnected && !(systemState == SystemState::NET_OFF || systemState == SystemState::BOOTING))
         {
             setSystemState(SystemState::MQTT_OFF);
 

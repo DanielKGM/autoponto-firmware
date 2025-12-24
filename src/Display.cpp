@@ -1,12 +1,19 @@
 #include "Display.h"
 #include "Globals.h"
 #include "Config.h"
+#include "Icons.h"
 
-using DisplayMessage = struct
+struct DisplayMessage
 {
     char text[DISPLAY_MSG_MAX_LEN];
     TickType_t duration;
+    const Icon *icon; // nullptr = sem ícone
 };
+
+const Icon ICON_WIFI = {wifi_icon, 38, 38};
+const Icon ICON_SAD = {sad_icon, 38, 38};
+const Icon ICON_HAPPY = {happy_icon, 38, 38};
+const Icon ICON_SERVER = {server_icon, 38, 38};
 
 JPEGDEC decoder;
 TFT_eSPI tft = TFT_eSPI();
@@ -17,41 +24,69 @@ QueueHandle_t frameQueue = xQueueCreate(1, sizeof(FrameBuffer));
 int drawMCUs(JPEGDRAW *pDraw)
 {
     spr.pushImage(pDraw->x, pDraw->y, pDraw->iWidth, pDraw->iHeight, pDraw->pPixels);
+
     return 1;
 }
 
 void initTFT()
 {
     tft.init();
-    tft.setRotation(0);
+    tft.setPivot(DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2);
     tft.fillScreen(TFT_BLACK);
+    tft.setRotation(1);
 }
 
 void initSprite()
 {
     spr.createSprite(DISPLAY_WIDTH, DISPLAY_HEIGHT);
     spr.fillScreen(TFT_BLACK);
-    spr.setRotation(0);
     spr.setSwapBytes(false);
     spr.setTextColor(TFT_WHITE, TFT_BLACK);
-    spr.setTextDatum(MC_DATUM);
-    spr.setTextFont(2);
+    spr.setTextDatum(TL_DATUM);
+
     spr.setTextSize(1);
 }
 
-void showText(const char *text, bool pushToDisplay)
+void showText(const char *text,
+              const Icon *icon)
 {
     spr.fillScreen(TFT_BLACK);
+    spr.pushSprite(0, 0);
 
-    spr.drawString(text, DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2);
+    const int spacing = 6;
+    const int lineHeight = spr.fontHeight();
 
-    if (pushToDisplay)
+    int iconH = icon ? icon->height : 0;
+    int iconW = icon ? icon->width : 0;
+
+    int totalHeight = lineHeight;
+    if (icon)
+        totalHeight += iconH + spacing;
+
+    int y = (DISPLAY_HEIGHT - totalHeight) / 2;
+
+    if (icon)
     {
-        spr.pushSprite(0, 0);
+        int x = (DISPLAY_WIDTH - iconW) / 2;
+        spr.pushImage(x, y, iconW, iconH, icon->data);
+        y += iconH + spacing;
     }
+
+    String out = text;
+
+    while (spr.textWidth(out) > DISPLAY_WIDTH && out.length() > 3)
+    {
+        out.remove(out.length() - 4);
+        out += "...";
+    }
+
+    int textX = (DISPLAY_WIDTH - spr.textWidth(out)) / 2;
+    spr.drawString(out, textX, y);
+
+    spr.pushRotated(270);
 }
 
-bool showCamFrame(bool pushSprite, bool captureFrame = false)
+bool showCamFrame(bool pushSprite, bool captureFrame)
 {
     camera_fb_t *fb = esp_camera_fb_get();
 
@@ -83,6 +118,8 @@ bool showCamFrame(bool pushSprite, bool captureFrame = false)
     // Display
     bool converted = false;
 
+    spr.fillScreen(TFT_BLACK);
+
     if (decoder.openRAM(fb->buf, fb->len, drawMCUs))
     {
         decoder.setPixelType(RGB565_BIG_ENDIAN);
@@ -100,7 +137,7 @@ bool showCamFrame(bool pushSprite, bool captureFrame = false)
     return converted;
 }
 
-bool sendDisplayMessage(const char *text, unsigned long durationMs)
+bool sendDisplayMessage(const char *text, unsigned long durationMs, const Icon *icon)
 {
     if (!messageQueue)
     {
@@ -110,6 +147,7 @@ bool sendDisplayMessage(const char *text, unsigned long durationMs)
     DisplayMessage msg{};
     strncpy(msg.text, text, DISPLAY_MSG_MAX_LEN - 1);
     msg.duration = pdMS_TO_TICKS(durationMs);
+    msg.icon = icon;
 
     return xQueueSendToBack(messageQueue, &msg, 0) == pdPASS;
 }
@@ -138,7 +176,7 @@ void TaskDisplayCode(void *pvParameters)
         {
             hasMessage = true;
             overlayUntil = (msg.duration > 0) ? (now + msg.duration) : 0;
-            showText(msg.text, true);
+            showText(msg.text, msg.icon);
         }
 
         if (!hasMessage && systemState == SystemState::READY)

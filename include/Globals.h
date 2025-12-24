@@ -7,13 +7,13 @@
 enum class SystemState
 {
     BOOTING,
-    NET_ON,
     NET_OFF,
+    NET_ON,
     MQTT_OFF,
     READY,
+    SLEEPING,
     USER_PRESENT,
     WAITING_SERVER,
-    SLEEPING
 };
 
 extern char deviceId[13];

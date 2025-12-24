@@ -33,7 +33,7 @@ bool sendFrame()
 
     if (resp != HTTP_CODE_OK)
     {
-        sendDisplayMessage("Erro ao enviar captura!", 1000);
+        sendDisplayMessage("Erro ao enviar captura!", 1000, &ICON_SAD);
     }
 
     return resp != HTTP_CODE_OK;
@@ -54,7 +54,7 @@ bool connWifi()
     {
         if (xTaskGetTickCount() - start > timeout)
         {
-            sendDisplayMessage("WiFi falhou!", 2000);
+            sendDisplayMessage("WiFi falhou!", 2000, &ICON_SAD);
             return false;
         }
 
@@ -64,7 +64,7 @@ bool connWifi()
                  "Conectando ao WiFi%.*s",
                  dots, "...");
 
-        sendDisplayMessage(msg);
+        sendDisplayMessage(msg, 0, &ICON_WIFI);
 
         vTaskDelay(pdMS_TO_TICKS(500));
     }

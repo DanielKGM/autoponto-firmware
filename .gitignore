@@ -2,4 +2,5 @@
 .vscode
 temp
 include/Config.h
+server/*
 compile_commands.json

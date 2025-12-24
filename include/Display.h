@@ -3,11 +3,23 @@
 #include <JPEGDEC.h>
 #include <TFT_eSPI.h>
 
-using FrameBuffer = struct
+struct FrameBuffer
 {
     uint8_t *data;
     size_t len;
 };
+
+struct Icon
+{
+    const uint16_t *data;
+    uint16_t width;
+    uint16_t height;
+};
+
+extern const Icon ICON_WIFI;
+extern const Icon ICON_SAD;
+extern const Icon ICON_HAPPY;
+extern const Icon ICON_SERVER;
 
 extern QueueHandle_t messageQueue;
 extern QueueHandle_t frameQueue;
@@ -21,8 +33,9 @@ void initSprite();
 
 int drawMCUs(JPEGDRAW *pDraw);
 
-void showText(const char *text, bool pushToDisplay = true);
-bool showCamFrame(bool pushSprite = false);
+void showText(const char *text, const Icon *icon = nullptr);
+bool showCamFrame(bool pushSprite, bool captureFrame = false);
 
-bool sendDisplayMessage(const char *text, unsigned long durationMs = 0);
+bool sendDisplayMessage(const char *text, unsigned long durationMs = 0, const Icon *icon = nullptr);
+
 void TaskDisplayCode(void *pvParameters);
