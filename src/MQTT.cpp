@@ -165,8 +165,6 @@ void mqttCallback(char *topic, byte *payload, unsigned int length)
     if (doc["auth"].is<bool>() && doc["auth"])
     {
         setBuzzerTriggered(true);
-        sendDisplayMessage("Autenticado!", 2000);
-        setSystemState(SystemState::READY);
     }
 
     if (doc["log"].is<bool>())
@@ -199,14 +197,14 @@ void TaskMqttCode(void *pvParameters)
         {
             setSystemState(SystemState::MQTT_OFF);
 
-            if (!connMqtt())
+            if (connMqtt())
             {
-                vTaskDelay(tickDelay);
-                continue;
+                mqtt.publish(topicStatus, "READY", true);
+                setSystemState(SystemState::READY);
             }
 
-            mqtt.publish(topicStatus, "READY", true);
-            setSystemState(SystemState::READY);
+            vTaskDelay(tickDelay);
+            continue;
         }
 
         if (isConnected)

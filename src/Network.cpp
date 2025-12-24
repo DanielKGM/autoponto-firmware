@@ -36,7 +36,7 @@ bool sendFrame()
         sendDisplayMessage("Erro ao enviar captura!", 1000, &ICON_SAD);
     }
 
-    return resp != HTTP_CODE_OK;
+    return resp == HTTP_CODE_OK;
 }
 
 bool connWifi()

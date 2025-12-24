@@ -50,10 +50,7 @@ void initSprite()
 void showText(const char *text,
               const Icon *icon)
 {
-    spr.fillScreen(TFT_BLACK);
-    spr.pushSprite(0, 0);
-
-    const int spacing = 6;
+    const int spacing = 10;
     const int lineHeight = spr.fontHeight();
 
     int iconH = icon ? icon->height : 0;
@@ -179,7 +176,7 @@ void TaskDisplayCode(void *pvParameters)
             showText(msg.text, msg.icon);
         }
 
-        if (!hasMessage && systemState == SystemState::READY)
+        if (!hasMessage && (systemState == SystemState::READY))
         {
             showCamFrame(true, ulTaskNotifyTake(pdTRUE, 0) > 0);
         }
