@@ -103,13 +103,13 @@ void TaskNetworkCode(void *pvParameters)
         {
             setSystemState(SystemState::NET_OFF);
 
-            if (!connWifi())
+            if (connWifi())
             {
-                vTaskDelay(tickDelay);
-                continue;
+                setSystemState(SystemState::NET_ON);
             }
 
-            setSystemState(SystemState::NET_ON);
+            vTaskDelay(tickDelay);
+            continue;
         }
 
         if (systemState == SystemState::READY && (now - lastReqTick) > reqInterval)

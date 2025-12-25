@@ -23,7 +23,7 @@ QueueHandle_t frameQueue = xQueueCreate(1, sizeof(FrameBuffer));
 
 int drawMCUs(JPEGDRAW *pDraw)
 {
-    spr.pushImage(pDraw->x, pDraw->y, pDraw->iWidth, pDraw->iHeight, pDraw->pPixels);
+    tft.pushImage(pDraw->x, pDraw->y, pDraw->iWidth, pDraw->iHeight, pDraw->pPixels);
 
     return 1;
 }
@@ -39,7 +39,6 @@ void initTFT()
 void initSprite()
 {
     spr.createSprite(DISPLAY_WIDTH, DISPLAY_HEIGHT);
-    spr.fillScreen(TFT_BLACK);
     spr.setSwapBytes(false);
     spr.setTextColor(TFT_WHITE, TFT_BLACK);
     spr.setTextDatum(TL_DATUM);
@@ -50,6 +49,8 @@ void initSprite()
 void showText(const char *text,
               const Icon *icon)
 {
+    spr.fillScreen(TFT_BLACK);
+
     const int spacing = 10;
     const int lineHeight = spr.fontHeight();
 
@@ -83,7 +84,7 @@ void showText(const char *text,
     spr.pushRotated(270);
 }
 
-bool showCamFrame(bool pushSprite, bool captureFrame)
+bool showCamFrame(bool captureFrame)
 {
     camera_fb_t *fb = esp_camera_fb_get();
 
@@ -115,8 +116,6 @@ bool showCamFrame(bool pushSprite, bool captureFrame)
     // Display
     bool converted = false;
 
-    spr.fillScreen(TFT_BLACK);
-
     if (decoder.openRAM(fb->buf, fb->len, drawMCUs))
     {
         decoder.setPixelType(RGB565_BIG_ENDIAN);
@@ -125,11 +124,6 @@ bool showCamFrame(bool pushSprite, bool captureFrame)
     }
 
     esp_camera_fb_return(fb);
-
-    if (converted && pushSprite)
-    {
-        spr.pushSprite(0, 0);
-    }
 
     return converted;
 }
@@ -158,7 +152,8 @@ void TaskDisplayCode(void *pvParameters)
     bool hasMessage = false;
     TickType_t overlayUntil = 0;
 
-    const TickType_t tickDelay = pdMS_TO_TICKS(50);
+    const TickType_t tickDelay = pdMS_TO_TICKS(100);
+    const TickType_t videoTickDelay = pdMS_TO_TICKS(5);
 
     while (systemState != SystemState::SLEEPING)
     {
@@ -178,7 +173,9 @@ void TaskDisplayCode(void *pvParameters)
 
         if (!hasMessage && (systemState == SystemState::READY))
         {
-            showCamFrame(true, ulTaskNotifyTake(pdTRUE, 0) > 0);
+            showCamFrame(ulTaskNotifyTake(pdTRUE, 0) > 0);
+            vTaskDelay(videoTickDelay);
+            continue;
         }
 
         vTaskDelay(tickDelay);

@@ -34,7 +34,7 @@ void initSprite();
 int drawMCUs(JPEGDRAW *pDraw);
 
 void showText(const char *text, const Icon *icon = nullptr);
-bool showCamFrame(bool pushSprite, bool captureFrame = false);
+bool showCamFrame(bool captureFrame = false);
 
 bool sendDisplayMessage(const char *text, unsigned long durationMs = 0, const Icon *icon = nullptr);
 
