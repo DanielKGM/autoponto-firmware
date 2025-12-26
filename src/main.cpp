@@ -46,7 +46,7 @@ void setup()
     xTaskCreatePinnedToCore(
         display::TaskDisplayCode,
         "TaskDisplay",
-        12288,
+        8192,
         nullptr,
         1,
         &TaskDisplay,
@@ -69,7 +69,7 @@ void setup()
     xTaskCreatePinnedToCore(
         mqtt::TaskMqttCode,
         "TaskMqtt",
-        4096,
+        8192,
         nullptr,
         1,
         &TaskMqtt,
@@ -81,13 +81,12 @@ void loop()
     using namespace power;
     TickType_t now = xTaskGetTickCount();
 
-    /*
     if (sensorTriggered)
     {
+        changeTriggeredFlag(false);
         exitIdle();
-        sensorTriggered = false;
         lastSensorTick = now;
-    }*/
+    }
 
     if (buzzerTriggered)
     {
@@ -95,11 +94,10 @@ void loop()
         positiveFB();
     }
 
-    /*
-    if ((now - lastSensorTick) > ticksToIdle)
+    if (!idleFlag && (now - lastSensorTick) > ticksToIdle)
     {
         enterIdle();
-    }*/
+    }
 
     if ((now - lastSensorTick) > ticksToSleep)
     {

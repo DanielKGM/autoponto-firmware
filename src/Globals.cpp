@@ -24,11 +24,7 @@ void changeTaskCount(short int delta)
 
 short int checkTaskCount()
 {
-    short int result;
-    portENTER_CRITICAL(&tasksAliveMux);
-    result = tasksAlive;
-    portEXIT_CRITICAL(&tasksAliveMux);
-    return result;
+    return tasksAlive;
 }
 
 void setState(SystemState newState)
@@ -42,17 +38,14 @@ void setState(SystemState newState)
 
 bool checkState(SystemState state)
 {
-    bool result = false;
-    portENTER_CRITICAL(&systemStateMux);
-    result = (systemState == state);
-    portEXIT_CRITICAL(&systemStateMux);
-    return result;
+    return (systemState == state);
 }
 
 void triggerSleepEvent()
 {
     setState(SystemState::SLEEPING);
     xEventGroupSetBits(systemEvents, EVT_SLEEP);
+    vTaskDelay(pdMS_TO_TICKS(100));
 }
 
 bool checkSleepEvent(TickType_t waitInterval)

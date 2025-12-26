@@ -58,6 +58,7 @@ namespace mqtt
         {
             JsonDocument doc;
 
+            doc["cpumhz"] = ESP.getCpuFreqMHz();
             doc["rssi"] = WiFi.isConnected() ? WiFi.RSSI() : 0;
             doc["heap_free"] = ESP.getFreeHeap();
             doc["heap_min"] = ESP.getMinFreeHeap();
@@ -157,6 +158,11 @@ namespace mqtt
                 power::buzzerTriggered = true;
             }
 
+            if (doc["stats"].is<bool>())
+            {
+                publishSystemStats();
+            }
+
             if (doc["log"].is<bool>())
             {
                 bool newValue = doc["log"];
@@ -183,7 +189,10 @@ namespace mqtt
 
     void publishStatus(const char *payload)
     {
-        mqtt.publish(topicStatus, payload, true);
+        if (mqtt.connected())
+        {
+            mqtt.publish(topicStatus, payload, true);
+        }
     }
 
     void TaskMqttCode(void *pvParameters)
@@ -192,16 +201,14 @@ namespace mqtt
 
         configMqtt();
 
-        const TickType_t normalDelay = pdMS_TO_TICKS(100);
-        const TickType_t idleDelay = pdMS_TO_TICKS(200);
+        const TickType_t delay = pdMS_TO_TICKS(100);
 
         char lastMsg[MQTT_PAYLOAD_MAX];
-        TickType_t lastStatsTick = 0;
+        TickType_t lastLogTick = 0;
         const TickType_t logInterval = pdMS_TO_TICKS(MQTT_LOG_INTERVAL_MS);
 
         while (true)
         {
-            const TickType_t delay = idleFlag ? idleDelay : normalDelay;
 
             bool isConnected = mqtt.connected();
 
@@ -212,21 +219,17 @@ namespace mqtt
 
                 if (connMqtt())
                 {
-                    setState(SystemState::WORKING);
+                    setState(idleFlag ? SystemState::IDLE : SystemState::WORKING);
                 }
             }
 
-            if (isConnected)
+            if (loggerFlag && isConnected && (xTaskGetTickCount() - lastLogTick) > logInterval)
             {
+                lastLogTick = xTaskGetTickCount();
+
                 if (xQueueReceive(mqttQueue, lastMsg, 0) == pdTRUE)
                 {
                     mqtt.publish(topicLogs, lastMsg, false);
-                }
-
-                if (loggerFlag && (xTaskGetTickCount() - lastStatsTick) > logInterval)
-                {
-                    lastStatsTick = xTaskGetTickCount();
-                    publishSystemStats();
                 }
             }
 

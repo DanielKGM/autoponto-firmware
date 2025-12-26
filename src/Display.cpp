@@ -2,6 +2,7 @@
 #include "Globals.h"
 #include "Config.h"
 #include "Icons.h"
+#include "Power.h"
 
 namespace display
 {
@@ -162,7 +163,7 @@ namespace display
         TickType_t overlayUntil = 0;
 
         const TickType_t normalDelay = pdMS_TO_TICKS(100);
-        const TickType_t idleDelay = pdMS_TO_TICKS(200);
+        const TickType_t idleDelay = pdMS_TO_TICKS(1000);
         const TickType_t videoDelay = pdMS_TO_TICKS(5);
 
         while (true)
@@ -180,12 +181,20 @@ namespace display
             {
                 hasMessage = true;
                 overlayUntil = (msg.duration > 0) ? (now + msg.duration) : 0;
-                showText(msg.text, msg.icon);
+                if (idleFlag)
+                {
+                    tft.fillScreen(TFT_BLACK);
+                }
+                else
+                {
+                    showText(msg.text, msg.icon);
+                }
             }
 
             if (!hasMessage && checkState(SystemState::WORKING))
             {
-                // showCamFrame(ulTaskNotifyTake(pdTRUE, 0) > 0);
+                showCamFrame(ulTaskNotifyTake(pdTRUE, 0) > 0);
+                spr.drawString(power::sensorTriggered ? "true" : "false", 40, 40);
                 delay = videoDelay;
             }
 

@@ -97,8 +97,7 @@ namespace network
             setState(SystemState::NET_ON);
         }
 
-        const TickType_t normalDelay = pdMS_TO_TICKS(100);
-        const TickType_t idleDelay = pdMS_TO_TICKS(200);
+        const TickType_t delay = pdMS_TO_TICKS(100);
 
         const TickType_t reqInterval = pdMS_TO_TICKS(REST_POST_INTERVAL_MS);
         const TickType_t waitInterval = pdMS_TO_TICKS(RESPONSE_WAIT_TIMEOUT_MS);
@@ -107,7 +106,6 @@ namespace network
 
         while (true)
         {
-            TickType_t delay = idleFlag ? idleDelay : normalDelay;
             TickType_t now = xTaskGetTickCount();
 
             if (WiFi.status() != WL_CONNECTED)
@@ -122,12 +120,12 @@ namespace network
 
             if ((now - lastReqTick > reqInterval) && checkState(SystemState::WORKING))
             {
+                lastReqTick = now;
+
                 if (TaskDisplay)
                 {
                     xTaskNotifyGive(TaskDisplay);
                 }
-
-                lastReqTick = now;
 
                 if (sendFrame())
                 {
@@ -137,7 +135,7 @@ namespace network
 
             if ((now - lastReqTick > waitInterval) && checkState(SystemState::WAITING_SERVER))
             {
-                setState(SystemState::WORKING);
+                setState(idleFlag ? SystemState::IDLE : SystemState::WORKING);
             }
 
             if (checkSleepEvent(delay))

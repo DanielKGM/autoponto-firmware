@@ -2,18 +2,30 @@
 #include "Globals.h"
 #include "Config.h"
 #include "Camera.h"
+#include "esp_wifi.h"
 
 namespace power
 {
-    volatile bool sensorTriggered = false;
     volatile bool buzzerTriggered = false;
+    volatile bool sensorTriggered = false;
 
     namespace
     {
+        portMUX_TYPE sensorMux = portMUX_INITIALIZER_UNLOCKED;
+
         void IRAM_ATTR handlePIRInterrupt()
         {
+            portENTER_CRITICAL_ISR(&sensorMux);
             sensorTriggered = true;
+            portEXIT_CRITICAL_ISR(&sensorMux);
         }
+    }
+
+    void changeTriggeredFlag(bool value)
+    {
+        portENTER_CRITICAL(&sensorMux);
+        sensorTriggered = value;
+        portEXIT_CRITICAL(&sensorMux);
     }
 
     void positiveFB()
@@ -31,10 +43,8 @@ namespace power
         }
 
         digitalWrite(DISPLAY_ENABLE_PIN, LOW);
-        pinMode(PWDN_GPIO_NUM, OUTPUT);
-        digitalWrite(PWDN_GPIO_NUM, HIGH);
-        setCpuFrequencyMhz(80);
-        WiFi.setSleep(true);
+        setCpuFrequencyMhz(160);
+        esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
 
         setState(SystemState::IDLE);
         idleFlag = true;
@@ -48,10 +58,8 @@ namespace power
         }
 
         setCpuFrequencyMhz(240);
-        digitalWrite(PWDN_GPIO_NUM, LOW);
-        vTaskDelay(pdMS_TO_TICKS(100));
         digitalWrite(DISPLAY_ENABLE_PIN, HIGH);
-
+        esp_wifi_set_ps(WIFI_PS_NONE);
         setState(SystemState::WORKING);
         idleFlag = false;
     }
@@ -60,9 +68,10 @@ namespace power
     {
         pinMode(DISPLAY_ENABLE_PIN, OUTPUT);
         pinMode(PIR_PIN, INPUT);
+        pinMode(PWDN_GPIO_NUM, OUTPUT);
         pinMode(POSITIVE_FB_PIN, OUTPUT);
         digitalWrite(DISPLAY_ENABLE_PIN, HIGH);
-        attachInterrupt(digitalPinToInterrupt(PIR_PIN), handlePIRInterrupt, CHANGE);
+        attachInterrupt(digitalPinToInterrupt(PIR_PIN), handlePIRInterrupt, RISING);
     }
 
     void configSleep()
