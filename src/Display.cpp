@@ -3,6 +3,7 @@
 #include "Config.h"
 #include "Icons.h"
 #include "Power.h"
+#include "Font.h"
 
 namespace display
 {
@@ -15,6 +16,12 @@ namespace display
 
     namespace
     {
+        constexpr int BOX_WIDTH = DISPLAY_WIDTH - 50;
+        constexpr int BOX_HEIGHT = 55;
+        constexpr int BOX_BORDER = 2;
+        constexpr int BOX_PADDING = 8;
+        constexpr int ICON_SPACING = 10;
+
         struct DisplayMessage
         {
             char text[DISPLAY_MSG_MAX_LEN];
@@ -34,40 +41,53 @@ namespace display
             return 1;
         }
 
-        void showText(const char *text,
-                      const Icon *icon)
+        void showText(const char *text, const Icon *icon)
         {
-            spr.fillScreen(TFT_BLACK);
 
-            const int spacing = 10;
-            const int lineHeight = spr.fontHeight();
+            if (icon == &ICON_HAPPY)
+            {
+                spr.fillScreen(TFT_DARKGREEN);
+            }
+            else if (icon == &ICON_SAD)
+            {
+                spr.fillScreen(TFT_MAGENTA);
+            }
+            else
+            {
+                spr.fillScreen(TFT_BLACK);
+            }
 
             int iconH = icon ? icon->height : 0;
             int iconW = icon ? icon->width : 0;
 
-            int totalHeight = lineHeight;
-            if (icon)
-                totalHeight += iconH + spacing;
+            int totalH = BOX_HEIGHT + (icon ? iconH + ICON_SPACING : 0);
 
-            int y = (DISPLAY_HEIGHT - totalHeight) / 2;
+            int y = (DISPLAY_HEIGHT - totalH) / 2;
 
             if (icon)
             {
-                int x = (DISPLAY_WIDTH - iconW) / 2;
-                spr.pushImage(x, y, iconW, iconH, icon->data);
-                y += iconH + spacing;
+                int iconX = (DISPLAY_WIDTH - iconW) / 2;
+                spr.pushImage(iconX, y, iconW, iconH, icon->data);
+                y += iconH + ICON_SPACING;
             }
 
-            String out = text;
+            int boxX = (DISPLAY_WIDTH - BOX_WIDTH) / 2;
+            int boxY = y;
 
-            while (spr.textWidth(out) > DISPLAY_WIDTH && out.length() > 3)
-            {
-                out.remove(out.length() - 4);
-                out += "...";
-            }
+            spr.drawRect(boxX, boxY, BOX_WIDTH, BOX_HEIGHT, TFT_WHITE);
 
-            int textX = (DISPLAY_WIDTH - spr.textWidth(out)) / 2;
-            spr.drawString(out, textX, y);
+            spr.fillRect(
+                boxX + BOX_BORDER,
+                boxY + BOX_BORDER,
+                BOX_WIDTH - (BOX_BORDER * 2),
+                BOX_HEIGHT - (BOX_BORDER * 2),
+                TFT_BLACK);
+
+            spr.setCursor(
+                static_cast<int16_t>(boxX + BOX_BORDER + BOX_PADDING),
+                static_cast<int16_t>(boxY + BOX_BORDER + BOX_PADDING));
+
+            spr.printToSprite(text);
 
             spr.pushRotated(270);
         }
@@ -131,8 +151,9 @@ namespace display
         spr.setSwapBytes(false);
         spr.setTextColor(TFT_WHITE, TFT_BLACK);
         spr.setTextDatum(TL_DATUM);
-
+        spr.setTextWrap(true);
         spr.setTextSize(1);
+        spr.loadFont(determination);
     }
 
     bool sendDisplayMessage(const char *text, unsigned long durationMs, const Icon *icon)
