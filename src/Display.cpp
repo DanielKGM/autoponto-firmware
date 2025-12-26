@@ -33,7 +33,7 @@ namespace display
             return 1;
         }
 
-        void initTFT()
+        void configTFT()
         {
             tft.init();
             tft.setPivot(DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2);
@@ -41,7 +41,7 @@ namespace display
             tft.setRotation(1);
         }
 
-        void initSprite()
+        void configSprite()
         {
             spr.createSprite(DISPLAY_WIDTH, DISPLAY_HEIGHT);
             spr.setSwapBytes(false);
@@ -153,8 +153,8 @@ namespace display
     {
         changeTaskCount(1);
 
-        initTFT();
-        initSprite();
+        configTFT();
+        configSprite();
 
         DisplayMessage msg{};
 
@@ -162,11 +162,13 @@ namespace display
         TickType_t overlayUntil = 0;
 
         const TickType_t normalDelay = pdMS_TO_TICKS(100);
+        const TickType_t idleDelay = pdMS_TO_TICKS(200);
         const TickType_t videoDelay = pdMS_TO_TICKS(5);
 
         while (true)
         {
-            TickType_t delay = normalDelay;
+            TickType_t delay = idleFlag ? idleDelay : normalDelay;
+
             TickType_t now = xTaskGetTickCount();
 
             if (hasMessage && now >= overlayUntil)
@@ -181,9 +183,9 @@ namespace display
                 showText(msg.text, msg.icon);
             }
 
-            if (!hasMessage && checkSystemState(SystemState::WORKING))
+            if (!hasMessage && checkState(SystemState::WORKING))
             {
-                showCamFrame(ulTaskNotifyTake(pdTRUE, 0) > 0);
+                // showCamFrame(ulTaskNotifyTake(pdTRUE, 0) > 0);
                 delay = videoDelay;
             }
 

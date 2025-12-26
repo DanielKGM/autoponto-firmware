@@ -7,9 +7,11 @@
 #include "MQTT.h"
 
 const TickType_t ticksToSleep = pdMS_TO_TICKS(SLEEP_TIMEOUT_MS);
-const TickType_t loopDelay = pdMS_TO_TICKS(500);
+const TickType_t ticksToIdle = pdMS_TO_TICKS(IDLE_TIMEOUT_MS);
+const TickType_t loopDelay = pdMS_TO_TICKS(100);
+volatile TickType_t lastSensorTick = xTaskGetTickCount();
 
-void initID()
+void loadID()
 {
     Preferences prefs;
     prefs.begin("system", false);
@@ -32,12 +34,12 @@ void setup()
 {
     WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
 
-    setSystemState(SystemState::BOOTING);
+    setState(SystemState::BOOTING);
 
-    initID();
-    power::initPins();
-    power::initSleep();
-    camera::initCamera();
+    loadID();
+    power::configPins();
+    power::configSleep();
+    camera::configCamera();
 
     xTaskCreatePinnedToCore(
         display::TaskDisplayCode,
@@ -75,20 +77,29 @@ void setup()
 void loop()
 {
     using namespace power;
+    TickType_t now = xTaskGetTickCount();
 
+    /*
     if (sensorTriggered)
     {
+        exitIdle();
         sensorTriggered = false;
-        lastSensorTick = xTaskGetTickCount();
-    }
+        lastSensorTick = now;
+    }*/
 
     if (buzzerTriggered)
     {
-        setBuzzerTriggered(false);
+        power::buzzerTriggered = false;
         positiveFB();
     }
 
-    if ((xTaskGetTickCount() - lastSensorTick) > ticksToSleep)
+    /*
+    if ((now - lastSensorTick) > ticksToIdle)
+    {
+        enterIdle();
+    }*/
+
+    if ((now - lastSensorTick) > ticksToSleep)
     {
         triggerSleepEvent();
     }

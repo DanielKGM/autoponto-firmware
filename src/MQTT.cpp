@@ -121,43 +121,6 @@ namespace mqtt
             return true;
         }
 
-        void mqttCallback(char *topic, byte *payload, unsigned int length)
-        {
-            JsonDocument doc;
-
-            if (deserializeJson(doc, payload, length))
-            {
-                return;
-            }
-
-            if (doc["auth"].is<bool>() && doc["auth"])
-            {
-                power::setBuzzerTriggered(true);
-            }
-
-            if (doc["log"].is<bool>())
-            {
-                bool newValue = doc["log"];
-
-                if (loggerFlag != newValue)
-                {
-                    setLogFlag(newValue);
-                }
-            }
-        }
-
-        bool initMqtt()
-        {
-            buildTopics();
-            loadLogFlag();
-
-            mqtt.setClient(network::wifiClient);
-            mqtt.setServer(MQTT_URL, MQTT_PORT);
-            mqtt.setCallback(mqttCallback);
-
-            return true;
-        }
-
         void loadLogFlag()
         {
             Preferences prefs;
@@ -179,9 +142,46 @@ namespace mqtt
 
             loggerFlag = value;
         }
+
+        void mqttCallback(char *topic, byte *payload, unsigned int length)
+        {
+            JsonDocument doc;
+
+            if (deserializeJson(doc, payload, length))
+            {
+                return;
+            }
+
+            if (doc["auth"].is<bool>() && doc["auth"])
+            {
+                power::buzzerTriggered = true;
+            }
+
+            if (doc["log"].is<bool>())
+            {
+                bool newValue = doc["log"];
+
+                if (loggerFlag != newValue)
+                {
+                    setLogFlag(newValue);
+                }
+            }
+        }
+
+        bool configMqtt()
+        {
+            buildTopics();
+            loadLogFlag();
+
+            mqtt.setClient(network::wifiClient);
+            mqtt.setServer(MQTT_URL, MQTT_PORT);
+            mqtt.setCallback(mqttCallback);
+
+            return true;
+        }
     } //
 
-    bool publishStatus(const char *payload)
+    void publishStatus(const char *payload)
     {
         mqtt.publish(topicStatus, payload, true);
     }
@@ -190,24 +190,29 @@ namespace mqtt
     {
         changeTaskCount(1);
 
-        initMqtt();
+        configMqtt();
 
-        const TickType_t delay = pdMS_TO_TICKS(100);
+        const TickType_t normalDelay = pdMS_TO_TICKS(100);
+        const TickType_t idleDelay = pdMS_TO_TICKS(200);
+
         char lastMsg[MQTT_PAYLOAD_MAX];
         TickType_t lastStatsTick = 0;
         const TickType_t logInterval = pdMS_TO_TICKS(MQTT_LOG_INTERVAL_MS);
 
         while (true)
         {
+            const TickType_t delay = idleFlag ? idleDelay : normalDelay;
+
             bool isConnected = mqtt.connected();
 
-            if (!isConnected && !(checkSystemState(SystemState::NET_OFF) || checkSystemState(SystemState::BOOTING)))
+            if (!isConnected &&
+                !(checkState(SystemState::NET_OFF) || checkState(SystemState::BOOTING)))
             {
-                setSystemState(SystemState::MQTT_OFF);
+                setState(SystemState::MQTT_OFF);
 
                 if (connMqtt())
                 {
-                    setSystemState(SystemState::WORKING);
+                    setState(SystemState::WORKING);
                 }
             }
 

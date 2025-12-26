@@ -80,7 +80,7 @@ namespace network
             return true;
         }
 
-        bool initWifi()
+        bool configWifi()
         {
             WiFi.mode(WIFI_STA);
 
@@ -92,12 +92,14 @@ namespace network
     {
         changeTaskCount(1);
 
-        if (initWifi())
+        if (configWifi())
         {
-            setSystemState(SystemState::NET_ON);
+            setState(SystemState::NET_ON);
         }
 
-        const TickType_t delay = pdMS_TO_TICKS(100);
+        const TickType_t normalDelay = pdMS_TO_TICKS(100);
+        const TickType_t idleDelay = pdMS_TO_TICKS(200);
+
         const TickType_t reqInterval = pdMS_TO_TICKS(REST_POST_INTERVAL_MS);
         const TickType_t waitInterval = pdMS_TO_TICKS(RESPONSE_WAIT_TIMEOUT_MS);
 
@@ -105,19 +107,20 @@ namespace network
 
         while (true)
         {
+            TickType_t delay = idleFlag ? idleDelay : normalDelay;
             TickType_t now = xTaskGetTickCount();
 
             if (WiFi.status() != WL_CONNECTED)
             {
-                setSystemState(SystemState::NET_OFF);
+                setState(SystemState::NET_OFF);
 
                 if (connWifi())
                 {
-                    setSystemState(SystemState::NET_ON);
+                    setState(SystemState::NET_ON);
                 }
             }
 
-            if ((now - lastReqTick > reqInterval) && checkSystemState(SystemState::WORKING))
+            if ((now - lastReqTick > reqInterval) && checkState(SystemState::WORKING))
             {
                 if (TaskDisplay)
                 {
@@ -128,13 +131,13 @@ namespace network
 
                 if (sendFrame())
                 {
-                    setSystemState(SystemState::WAITING_SERVER);
+                    setState(SystemState::WAITING_SERVER);
                 }
             }
 
-            if ((now - lastReqTick > waitInterval) && checkSystemState(SystemState::WAITING_SERVER))
+            if ((now - lastReqTick > waitInterval) && checkState(SystemState::WAITING_SERVER))
             {
-                setSystemState(SystemState::WORKING);
+                setState(SystemState::WORKING);
             }
 
             if (checkSleepEvent(delay))

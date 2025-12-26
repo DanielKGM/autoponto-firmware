@@ -1,27 +1,19 @@
 #include "Power.h"
 #include "Globals.h"
 #include "Config.h"
+#include "Camera.h"
 
 namespace power
 {
-    volatile TickType_t lastSensorTick = xTaskGetTickCount();
     volatile bool sensorTriggered = false;
+    volatile bool buzzerTriggered = false;
 
     namespace
     {
-        portMUX_TYPE buzzerMux = portMUX_INITIALIZER_UNLOCKED;
-
         void IRAM_ATTR handlePIRInterrupt()
         {
             sensorTriggered = true;
         }
-    }
-
-    void setBuzzerTriggered(bool value)
-    {
-        portENTER_CRITICAL(&buzzerMux);
-        buzzerTriggered = value;
-        portEXIT_CRITICAL(&buzzerMux);
     }
 
     void positiveFB()
@@ -31,7 +23,40 @@ namespace power
         digitalWrite(POSITIVE_FB_PIN, LOW);
     }
 
-    void initPins()
+    void enterIdle()
+    {
+        if (idleFlag)
+        {
+            return;
+        }
+
+        digitalWrite(DISPLAY_ENABLE_PIN, LOW);
+        pinMode(PWDN_GPIO_NUM, OUTPUT);
+        digitalWrite(PWDN_GPIO_NUM, HIGH);
+        setCpuFrequencyMhz(80);
+        WiFi.setSleep(true);
+
+        setState(SystemState::IDLE);
+        idleFlag = true;
+    }
+
+    void exitIdle()
+    {
+        if (!idleFlag)
+        {
+            return;
+        }
+
+        setCpuFrequencyMhz(240);
+        digitalWrite(PWDN_GPIO_NUM, LOW);
+        vTaskDelay(pdMS_TO_TICKS(100));
+        digitalWrite(DISPLAY_ENABLE_PIN, HIGH);
+
+        setState(SystemState::WORKING);
+        idleFlag = false;
+    }
+
+    void configPins()
     {
         pinMode(DISPLAY_ENABLE_PIN, OUTPUT);
         pinMode(PIR_PIN, INPUT);
@@ -40,7 +65,7 @@ namespace power
         attachInterrupt(digitalPinToInterrupt(PIR_PIN), handlePIRInterrupt, CHANGE);
     }
 
-    void initSleep()
+    void configSleep()
     {
         esp_sleep_enable_ext0_wakeup((gpio_num_t)PIR_PIN, 1);
         rtc_gpio_pullup_dis((gpio_num_t)PIR_PIN);

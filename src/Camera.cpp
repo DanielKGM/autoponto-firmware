@@ -4,29 +4,9 @@
 
 namespace camera
 {
-    constexpr int PWDN_GPIO_NUM = 32;
-    constexpr int RESET_GPIO_NUM = -1;
-    constexpr int XCLK_GPIO_NUM = 0;
-    constexpr int XCLK_FREQ_HZ = 20000000;
-    constexpr int SIOD_GPIO_NUM = 26;
-    constexpr int SIOC_GPIO_NUM = 27;
-    constexpr int Y9_GPIO_NUM = 35;
-    constexpr int Y8_GPIO_NUM = 34;
-    constexpr int Y7_GPIO_NUM = 39;
-    constexpr int Y6_GPIO_NUM = 36;
-    constexpr int Y5_GPIO_NUM = 21;
-    constexpr int Y4_GPIO_NUM = 19;
-    constexpr int Y3_GPIO_NUM = 18;
-    constexpr int Y2_GPIO_NUM = 5;
-    constexpr int VSYNC_GPIO_NUM = 25;
-    constexpr int HREF_GPIO_NUM = 23;
-    constexpr int PCLK_GPIO_NUM = 22;
-    constexpr int BUFFER_NUMBER = 2;
-    constexpr int JPEG_QUALITY = 10;
-
     camera_config_t config;
 
-    void initCamera()
+    void configCamera()
     {
         config.ledc_channel = LEDC_CHANNEL_0;
         config.ledc_timer = LEDC_TIMER_0;
@@ -57,26 +37,29 @@ namespace camera
 
     bool startCamera()
     {
-        using namespace display;
-
         unsigned short int retry_count = 0;
         char msg[DISPLAY_MSG_MAX_LEN];
 
-        while (esp_camera_init(&config) != ESP_OK)
+        while (true)
         {
+            esp_err_t err = esp_camera_init(&config);
+
+            if (err == ESP_OK)
+                return true;
+
+            esp_camera_deinit();
             retry_count++;
 
-            snprintf(
-                msg,
-                DISPLAY_MSG_MAX_LEN,
-                "Falha ao iniciar camera! Tentando novamente... (%d/5)",
-                retry_count);
+            snprintf(msg, DISPLAY_MSG_MAX_LEN,
+                     "Falha ao iniciar camera (%d/5)", retry_count);
+            display::sendDisplayMessage(msg);
 
-            sendDisplayMessage(msg);
-
-            if (retry_count > 5)
+            if (retry_count >= 5)
             {
-                sendDisplayMessage("Falha ao iniciar camera! Reinicie o dispositivo.", 0, &ICON_SAD);
+                display::sendDisplayMessage(
+                    "Falha ao iniciar camera! Reinicie o dispositivo.",
+                    0,
+                    &display::ICON_SAD);
                 return false;
             }
 

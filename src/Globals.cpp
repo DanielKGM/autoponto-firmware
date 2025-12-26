@@ -7,6 +7,8 @@ portMUX_TYPE systemStateMux = portMUX_INITIALIZER_UNLOCKED;
 volatile short int tasksAlive = 0;
 
 // extern
+volatile bool idleFlag = false;
+
 char deviceId[13];
 EventGroupHandle_t systemEvents;
 TaskHandle_t TaskDisplay;
@@ -29,7 +31,7 @@ short int checkTaskCount()
     return result;
 }
 
-void setSystemState(SystemState newState)
+void setState(SystemState newState)
 {
     portENTER_CRITICAL(&systemStateMux);
     systemState = newState;
@@ -38,7 +40,7 @@ void setSystemState(SystemState newState)
     mqtt::publishStatus(stateStr(newState));
 }
 
-bool checkSystemState(SystemState state)
+bool checkState(SystemState state)
 {
     bool result = false;
     portENTER_CRITICAL(&systemStateMux);
@@ -49,7 +51,7 @@ bool checkSystemState(SystemState state)
 
 void triggerSleepEvent()
 {
-    setSystemState(SystemState::SLEEPING);
+    setState(SystemState::SLEEPING);
     xEventGroupSetBits(systemEvents, EVT_SLEEP);
 }
 
