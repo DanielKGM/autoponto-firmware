@@ -33,24 +33,6 @@ namespace display
             return 1;
         }
 
-        void configTFT()
-        {
-            tft.init();
-            tft.setPivot(DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2);
-            tft.fillScreen(TFT_BLACK);
-            tft.setRotation(1);
-        }
-
-        void configSprite()
-        {
-            spr.createSprite(DISPLAY_WIDTH, DISPLAY_HEIGHT);
-            spr.setSwapBytes(false);
-            spr.setTextColor(TFT_WHITE, TFT_BLACK);
-            spr.setTextDatum(TL_DATUM);
-
-            spr.setTextSize(1);
-        }
-
         void showText(const char *text,
                       const Icon *icon)
         {
@@ -133,6 +115,24 @@ namespace display
             return converted;
         }
     } //
+
+    void configTFT()
+    {
+        tft.init();
+        tft.setPivot(DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2);
+        tft.fillScreen(TFT_BLACK);
+        tft.setRotation(1);
+    }
+
+    void configSprite()
+    {
+        spr.createSprite(DISPLAY_WIDTH, DISPLAY_HEIGHT);
+        spr.setSwapBytes(false);
+        spr.setTextColor(TFT_WHITE, TFT_BLACK);
+        spr.setTextDatum(TL_DATUM);
+
+        spr.setTextSize(1);
+    }
 
     bool sendDisplayMessage(const char *text, unsigned long durationMs, const Icon *icon)
     {

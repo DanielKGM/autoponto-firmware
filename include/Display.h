@@ -26,4 +26,7 @@ namespace display
 
     bool sendDisplayMessage(const char *text, unsigned long durationMs = 0, const Icon *icon = nullptr);
     void TaskDisplayCode(void *pvParameters);
+
+    void configTFT();
+    void configSprite();
 }

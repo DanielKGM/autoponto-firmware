@@ -40,6 +40,8 @@ void setup()
     power::configPins();
     power::configSleep();
     camera::configCamera();
+    display::configTFT();
+    display::configSprite();
 
     xTaskCreatePinnedToCore(
         display::TaskDisplayCode,

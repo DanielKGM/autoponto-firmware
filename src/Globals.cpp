@@ -10,7 +10,7 @@ volatile short int tasksAlive = 0;
 volatile bool idleFlag = false;
 
 char deviceId[13];
-EventGroupHandle_t systemEvents;
+EventGroupHandle_t systemEvents = xEventGroupCreate();
 TaskHandle_t TaskDisplay;
 TaskHandle_t TaskNetwork;
 TaskHandle_t TaskMqtt;
