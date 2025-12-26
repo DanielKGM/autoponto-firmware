@@ -3,138 +3,149 @@
 #include "Network.h"
 #include "Globals.h"
 
-WiFiClient wifiClient;
+#include <HTTPClient.h>
 
-bool sendFrame()
+namespace network
 {
-    if (WiFi.status() != WL_CONNECTED)
+    WiFiClient wifiClient;
+
+    namespace
     {
-        return false;
-    }
-
-    FrameBuffer frame;
-
-    if (xQueueReceive(frameQueue, &frame, pdMS_TO_TICKS(1000)) != pdTRUE)
-    {
-        return false;
-    }
-
-    HTTPClient http;
-    http.setTimeout(REST_TIMEOUT_MS);
-    http.begin(REST_URL);
-
-    http.addHeader("Content-Type", "image/jpeg");
-    http.addHeader("X-Device-Id", deviceId);
-    http.addHeader("X-Auth", REST_PASS);
-
-    int resp = http.POST(frame.data, frame.len);
-    http.end();
-    free(frame.data);
-
-    if (resp != HTTP_CODE_OK)
-    {
-        sendDisplayMessage("Erro ao enviar captura!", 1000, &ICON_SAD);
-    }
-
-    return resp == HTTP_CODE_OK;
-}
-
-bool connWifi()
-{
-    WiFi.begin(WIFI_SSID, WIFI_PASS);
-
-    char msg[DISPLAY_MSG_MAX_LEN];
-
-    short int dots = 0;
-
-    const TickType_t start = xTaskGetTickCount();
-    const TickType_t timeout = pdMS_TO_TICKS(WIFI_TIMEOUT_MS);
-
-    while (WiFi.status() != WL_CONNECTED)
-    {
-        if (xTaskGetTickCount() - start > timeout)
+        bool sendFrame()
         {
-            sendDisplayMessage("WiFi falhou!", 2000, &ICON_SAD);
-            return false;
-        }
+            using namespace display;
 
-        dots = (dots + 1) % 4;
-
-        snprintf(msg, sizeof(msg),
-                 "Conectando ao WiFi%.*s",
-                 dots, "...");
-
-        sendDisplayMessage(msg, 0, &ICON_WIFI);
-
-        vTaskDelay(pdMS_TO_TICKS(500));
-    }
-
-    return true;
-}
-
-bool initWifi()
-{
-    WiFi.mode(WIFI_STA);
-
-    return connWifi();
-}
-
-void TaskNetworkCode(void *pvParameters)
-{
-    changeTaskCount(1);
-
-    if (initWifi())
-    {
-        setSystemState(SystemState::NET_ON);
-    }
-
-    const TickType_t tickDelay = pdMS_TO_TICKS(100);
-
-    TickType_t lastReqTick = 0;
-
-    const TickType_t reqInterval = pdMS_TO_TICKS(REST_POST_INTERVAL_MS);
-    const TickType_t waitInterval = pdMS_TO_TICKS(RESPONSE_WAIT_TIMEOUT_MS);
-
-    while (systemState != SystemState::SLEEPING)
-    {
-        TickType_t now = xTaskGetTickCount();
-
-        if (WiFi.status() != WL_CONNECTED)
-        {
-            setSystemState(SystemState::NET_OFF);
-
-            if (connWifi())
+            if (WiFi.status() != WL_CONNECTED)
             {
-                setSystemState(SystemState::NET_ON);
+                return false;
             }
 
-            vTaskDelay(tickDelay);
-            continue;
-        }
+            FrameBuffer frame;
 
-        if (systemState == SystemState::READY && (now - lastReqTick) > reqInterval)
-        {
-            if (TaskDisplay)
+            if (xQueueReceive(frameQueue, &frame, pdMS_TO_TICKS(1000)) != pdTRUE)
             {
-                xTaskNotifyGive(TaskDisplay);
+                return false;
             }
 
-            lastReqTick = now;
+            HTTPClient http;
+            http.setTimeout(REST_TIMEOUT_MS);
+            http.begin(REST_URL);
 
-            if (sendFrame())
+            http.addHeader("Content-Type", "image/jpeg");
+            http.addHeader("X-Device-Id", deviceId);
+            http.addHeader("X-Auth", REST_PASS);
+
+            int resp = http.POST(frame.data, frame.len);
+            http.end();
+            free(frame.data);
+
+            if (resp != HTTP_CODE_OK)
             {
-                setSystemState(SystemState::WAITING_SERVER);
+                sendDisplayMessage("Erro ao enviar captura!", 1000, &ICON_SAD);
+            }
+
+            return resp == HTTP_CODE_OK;
+        }
+
+        bool connWifi()
+        {
+            using namespace display;
+
+            WiFi.begin(WIFI_SSID, WIFI_PASS);
+
+            char msg[DISPLAY_MSG_MAX_LEN];
+
+            short int dots = 0;
+
+            const TickType_t start = xTaskGetTickCount();
+            const TickType_t timeout = pdMS_TO_TICKS(WIFI_TIMEOUT_MS);
+
+            while (WiFi.status() != WL_CONNECTED)
+            {
+                if (xTaskGetTickCount() - start > timeout)
+                {
+                    sendDisplayMessage("WiFi falhou!", 2000, &ICON_SAD);
+                    return false;
+                }
+
+                dots = (dots + 1) % 4;
+
+                snprintf(msg, sizeof(msg),
+                         "Conectando ao WiFi%.*s",
+                         dots, "...");
+
+                sendDisplayMessage(msg, 0, &ICON_WIFI);
+
+                vTaskDelay(pdMS_TO_TICKS(500));
+            }
+
+            return true;
+        }
+
+        bool initWifi()
+        {
+            WiFi.mode(WIFI_STA);
+
+            return connWifi();
+        }
+    } //
+
+    void TaskNetworkCode(void *pvParameters)
+    {
+        changeTaskCount(1);
+
+        if (initWifi())
+        {
+            setSystemState(SystemState::NET_ON);
+        }
+
+        const TickType_t delay = pdMS_TO_TICKS(100);
+        const TickType_t reqInterval = pdMS_TO_TICKS(REST_POST_INTERVAL_MS);
+        const TickType_t waitInterval = pdMS_TO_TICKS(RESPONSE_WAIT_TIMEOUT_MS);
+
+        TickType_t lastReqTick = 0;
+
+        while (true)
+        {
+            TickType_t now = xTaskGetTickCount();
+
+            if (WiFi.status() != WL_CONNECTED)
+            {
+                setSystemState(SystemState::NET_OFF);
+
+                if (connWifi())
+                {
+                    setSystemState(SystemState::NET_ON);
+                }
+            }
+
+            if ((now - lastReqTick > reqInterval) && checkSystemState(SystemState::WORKING))
+            {
+                if (TaskDisplay)
+                {
+                    xTaskNotifyGive(TaskDisplay);
+                }
+
+                lastReqTick = now;
+
+                if (sendFrame())
+                {
+                    setSystemState(SystemState::WAITING_SERVER);
+                }
+            }
+
+            if ((now - lastReqTick > waitInterval) && checkSystemState(SystemState::WAITING_SERVER))
+            {
+                setSystemState(SystemState::WORKING);
+            }
+
+            if (checkSleepEvent(delay))
+            {
+                break;
             }
         }
 
-        if (systemState == SystemState::WAITING_SERVER && (now - lastReqTick) > waitInterval)
-        {
-            setSystemState(SystemState::READY);
-        }
-
-        vTaskDelay(tickDelay);
+        changeTaskCount(-1);
+        vTaskDelete(nullptr);
     }
-
-    changeTaskCount(-1);
-    vTaskDelete(nullptr);
 }
