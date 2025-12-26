@@ -1,6 +1,6 @@
 #pragma once
-
 #include "driver/rtc_io.h"
+#include "esp_camera.h"
 
 namespace power
 {

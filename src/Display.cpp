@@ -3,9 +3,6 @@
 #include "Config.h"
 #include "Icons.h"
 
-#include <JPEGDEC.h>
-#include <TFT_eSPI.h>
-
 namespace display
 {
     QueueHandle_t frameQueue = xQueueCreate(1, sizeof(FrameBuffer));

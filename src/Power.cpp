@@ -1,7 +1,6 @@
 #include "Power.h"
 #include "Globals.h"
 #include "Config.h"
-#include "esp_camera.h"
 
 namespace power
 {

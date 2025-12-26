@@ -1,9 +1,7 @@
+#include "Network.h"
 #include "Display.h"
 #include "Config.h"
-#include "Network.h"
 #include "Globals.h"
-
-#include <HTTPClient.h>
 
 namespace network
 {

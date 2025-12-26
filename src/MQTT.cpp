@@ -5,9 +5,6 @@
 #include "Display.h"
 #include "Power.h"
 
-#include <ArduinoJson.h>
-#include <PubSubClient.h>
-
 #define MQTT_TOPIC_SIZE 17 // deviceId + '/' + ('log' | 'cmd') + '/0'
 #define MQTT_PAYLOAD_MAX 256
 
@@ -154,7 +151,7 @@ namespace mqtt
             buildTopics();
             loadLogFlag();
 
-            mqtt.setClient(wifiClient);
+            mqtt.setClient(network::wifiClient);
             mqtt.setServer(MQTT_URL, MQTT_PORT);
             mqtt.setCallback(mqttCallback);
 

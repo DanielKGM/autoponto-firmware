@@ -1,4 +1,6 @@
 #pragma once
+#include <ArduinoJson.h>
+#include <PubSubClient.h>
 
 namespace mqtt
 {
