@@ -110,7 +110,6 @@ namespace network
         }
 
         const TickType_t delay = pdMS_TO_TICKS(100);
-
         const TickType_t reqInterval = pdMS_TO_TICKS(REST_POST_INTERVAL_MS);
         const TickType_t waitInterval = pdMS_TO_TICKS(RESPONSE_WAIT_TIMEOUT_MS);
 
@@ -122,6 +121,8 @@ namespace network
             {
                 break;
             }
+
+            TickType_t now = xTaskGetTickCount();
 
             if (!isConnected())
             {
@@ -135,25 +136,18 @@ namespace network
                 continue;
             }
 
-            TickType_t now = xTaskGetTickCount();
-
             if (checkState(SystemState::WAITING_SERVER))
             {
-                bool response = false; // response condition
-
-                // no response
-                if (!response && now - lastReqTick > waitInterval)
+                if (now - lastReqTick > waitInterval)
                 {
                     setState(SystemState::WORKING);
-                    continue;
                 }
 
-                // process response
-                setState(SystemState::WORKING);
                 continue;
             }
 
-            if (checkState(SystemState::WORKING) && now - lastReqTick > reqInterval)
+            if (checkState(SystemState::WORKING) &&
+                now - lastReqTick > reqInterval)
             {
                 lastReqTick = now;
 
@@ -172,4 +166,5 @@ namespace network
         changeTaskCount(-1);
         vTaskDelete(nullptr);
     }
+
 }
