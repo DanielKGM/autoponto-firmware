@@ -16,6 +16,7 @@ namespace display
         const uint16_t *data;
         uint16_t width;
         uint16_t height;
+        uint32_t color;
     };
 
     extern QueueHandle_t frameQueue;
@@ -24,7 +25,7 @@ namespace display
     extern const Icon ICON_HAPPY;
     extern const Icon ICON_SERVER;
 
-    bool sendDisplayMessage(const char *text, unsigned long durationMs = 0, const Icon *icon = nullptr);
+    bool sendDisplayMessage(const char *text, unsigned long durationMs = 100, const Icon *icon = nullptr);
     void TaskDisplayCode(void *pvParameters);
 
     void configTFT();

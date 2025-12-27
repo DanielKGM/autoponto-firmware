@@ -9,10 +9,10 @@ namespace display
 {
     QueueHandle_t frameQueue = xQueueCreate(1, sizeof(FrameBuffer));
 
-    const Icon ICON_WIFI = {wifi_icon, 38, 38};
-    const Icon ICON_SAD = {sad_icon, 38, 38};
-    const Icon ICON_HAPPY = {happy_icon, 38, 38};
-    const Icon ICON_SERVER = {server_icon, 38, 38};
+    const Icon ICON_WIFI = {wifi_icon, 38, 38, TFT_BLACK};
+    const Icon ICON_SAD = {sad_icon, 38, 38, TFT_MAGENTA};
+    const Icon ICON_HAPPY = {happy_icon, 38, 38, TFT_DARKGREEN};
+    const Icon ICON_SERVER = {server_icon, 38, 38, TFT_BLACK};
 
     namespace
     {
@@ -25,6 +25,7 @@ namespace display
 
         JPEGDEC decoder;
         TFT_eSPI tft = TFT_eSPI();
+        TFT_eSprite bgSpr = TFT_eSprite(&tft);
         TFT_eSprite spr = TFT_eSprite(&tft);
         QueueHandle_t messageQueue = xQueueCreate(5, sizeof(DisplayMessage));
 
@@ -35,93 +36,100 @@ namespace display
             return 1;
         }
 
-        void splitTextTwoLines(const String &text, String &line1, String &line2, int maxWidth)
+        void splitTextTwoLines(const String &text, String &l1, String &l2, int maxW)
         {
-            if (spr.textWidth(text) <= maxWidth)
+            if (spr.textWidth(text) <= maxW)
             {
-                line1 = text;
-                line2 = "";
+                l1 = text;
+                l2 = "";
                 return;
             }
 
-            int splitIndex = -1;
-            String currentText = "";
+            int split = 0;
 
             for (int i = 0; i < text.length(); i++)
             {
-                if (text[i] == ' ')
+                if (text[i] == ' ' &&
+                    spr.textWidth(text.substring(0, i)) <= maxW)
                 {
-                    if (spr.textWidth(text.substring(0, i)) > maxWidth)
-                    {
-                        break;
-                    }
-                    splitIndex = i;
+                    split = i;
                 }
             }
 
-            if (splitIndex == -1)
+            if (split == 0)
             {
-                splitIndex = text.length();
+                split = text.length();
             }
 
-            line1 = text.substring(0, splitIndex);
-            line2 = text.substring(splitIndex + 1);
+            l1 = text.substring(0, split);
+            l2 = text.substring(split + 1);
 
-            if (spr.textWidth(line2) > maxWidth)
+            if (spr.textWidth(l2) > maxW)
             {
-                String ellipsis = "...";
+                const String ell = "...";
+                int ellW = spr.textWidth(ell);
 
-                int ellipsisWidth = spr.textWidth(ellipsis);
-
-                while (line2.length() > 0 &&
-                       spr.textWidth(line2) + ellipsisWidth > maxWidth)
+                while (!l2.isEmpty() &&
+                       spr.textWidth(l2) + ellW > maxW)
                 {
-                    line2.remove(line2.length() - 1);
+                    l2.remove(l2.length() - 1);
                 }
-
-                line2 += ellipsis;
+                l2 += ell;
             }
         }
 
         void showText(const char *text, const Icon *icon)
         {
-            spr.fillScreen(TFT_BLACK);
+            const int spriteMargin = 15;
+            const int spriteW = DISPLAY_WIDTH - (spriteMargin * 2);
+            const int lineH = spr.fontHeight();
+            const int spacing = 10;
 
-            const int iconSpacing = 10;
-            const int lineHeight = spr.fontHeight();
-            const int iconH = icon ? icon->height : 0;
-            const int iconW = icon ? icon->width : 0;
+            String l1;
+            String l2;
+            splitTextTwoLines(text, l1, l2, spriteW);
 
-            String line1;
-            String line2;
+            const bool hasIcon = icon != nullptr;
+            const bool hasLine2 = !l2.isEmpty();
 
-            splitTextTwoLines(text, line1, line2, DISPLAY_WIDTH - 15);
+            int contentH =
+                (hasIcon ? icon->height + spacing : 0) +
+                lineH * (hasLine2 ? 2 : 1);
 
-            bool hasLine2 = !line2.isEmpty();
-            int textBlockHeight = lineHeight * (hasLine2 ? 2 : 1);
-            int totalHeight = iconH + (icon ? iconSpacing : 0) + textBlockHeight;
+            spr.createSprite(spriteW, static_cast<int16_t>(contentH));
+            spr.fillSprite(TFT_BLACK);
 
-            int startY = (DISPLAY_HEIGHT - totalHeight) / 2;
+            int y = 0;
 
-            //
-            if (icon)
+            // Ícone
+            if (hasIcon)
             {
-                int iconX = (DISPLAY_WIDTH - iconW) / 2;
-                spr.pushImage(iconX, startY, iconW, iconH, icon->data);
-                startY += iconH + iconSpacing;
+                spr.pushImage(
+                    (spriteW - icon->width) / 2,
+                    y,
+                    icon->width,
+                    icon->height,
+                    icon->data);
+                y += icon->height + spacing;
             }
 
-            //
-            int centerX = DISPLAY_WIDTH / 2;
-
-            spr.drawString(line1, centerX, startY + (lineHeight / 2));
+            int cx = spriteW / 2;
+            spr.drawString(l1, cx, y + lineH / 2);
 
             if (hasLine2)
             {
-                spr.drawString(line2, centerX, startY + lineHeight + (lineHeight / 2));
+                spr.drawString(l2, cx, y + lineH + lineH / 2);
             }
 
-            spr.pushRotated(270);
+            bgSpr.fillScreen(hasIcon ? icon->color : TFT_BLACK);
+
+            spr.pushToSprite(
+                &bgSpr,
+                spriteMargin,
+                (DISPLAY_HEIGHT - contentH) / 2,
+                TFT_BLACK);
+            spr.deleteSprite();
+            bgSpr.pushRotated(270);
         }
 
         bool showCamFrame(bool captureFrame)
@@ -179,11 +187,9 @@ namespace display
 
     void configSprite()
     {
-        spr.createSprite(DISPLAY_WIDTH, DISPLAY_HEIGHT);
-        spr.setSwapBytes(false);
+        bgSpr.createSprite(DISPLAY_WIDTH, DISPLAY_HEIGHT);
         spr.setTextColor(TFT_WHITE, TFT_BLACK);
         spr.setTextDatum(MC_DATUM);
-        spr.setTextWrap(true);
         spr.setFreeFont(&Determination);
     }
 
@@ -214,12 +220,21 @@ namespace display
         bool hasMessage = false;
         TickType_t overlayUntil = 0;
 
-        TickType_t delay = pdMS_TO_TICKS(100);
         const TickType_t idleDelay = pdMS_TO_TICKS(1000);
-        const TickType_t videoDelay = pdMS_TO_TICKS(5);
+        const TickType_t videoDelay = pdMS_TO_TICKS(10);
+        const TickType_t normalDelay = pdMS_TO_TICKS(100);
+
+        TickType_t currentDelay = normalDelay;
 
         while (true)
         {
+            currentDelay = idleFlag ? idleDelay : currentDelay;
+
+            if (checkSleepEvent(currentDelay))
+            {
+                break;
+            }
+
             TickType_t now = xTaskGetTickCount();
 
             if (hasMessage && now >= overlayUntil)
@@ -230,26 +245,20 @@ namespace display
             if (idleFlag)
             {
                 tft.fillScreen(TFT_BLACK);
-            }
-            else
-            {
-                if (!hasMessage && xQueueReceive(messageQueue, &msg, 0) == pdPASS)
-                {
-                    hasMessage = true;
-                    overlayUntil = (msg.duration > 0) ? (now + msg.duration) : 0;
-                    showText(msg.text, msg.icon);
-                }
-
-                if (!hasMessage && checkState(SystemState::WORKING))
-                {
-                    showCamFrame(ulTaskNotifyTake(pdTRUE, 0) > 0);
-                    delay = videoDelay;
-                }
+                continue;
             }
 
-            if (checkSleepEvent(idleFlag ? idleDelay : delay))
+            if (!hasMessage && xQueueReceive(messageQueue, &msg, 0) == pdPASS)
             {
-                break;
+                hasMessage = true;
+                overlayUntil = (msg.duration > 0) ? (now + msg.duration) : 0;
+                showText(msg.text, msg.icon);
+            }
+
+            if (!hasMessage && checkState(SystemState::WORKING))
+            {
+                showCamFrame(ulTaskNotifyTake(pdTRUE, 0) > 0);
+                currentDelay = videoDelay;
             }
         }
 
