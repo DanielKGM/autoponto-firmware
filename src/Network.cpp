@@ -39,7 +39,7 @@ namespace network
 
             if (resp != HTTP_CODE_OK)
             {
-                sendDisplayMessage("Erro ao enviar captura! <>/?() ABACADABRABATARAMACANEORIDBAVHAADWDWDWDWDWDWDWDWDWDYDFFKJ", 1000, &ICON_SAD);
+                sendDisplayMessage("Erro ao enviar captura!", 1000, &ICON_SAD);
             }
 
             return resp == HTTP_CODE_OK;
