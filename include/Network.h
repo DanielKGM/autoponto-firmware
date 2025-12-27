@@ -5,6 +5,7 @@
 
 namespace network
 {
+    int8_t getRSSI();
     bool isConnected();
     extern WiFiClient wifiClient;
     void TaskNetworkCode(void *pvParameters);

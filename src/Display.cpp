@@ -95,7 +95,7 @@ namespace display
             String line1;
             String line2;
 
-            splitTextTwoLines(text, line1, line2, DISPLAY_WIDTH - 10);
+            splitTextTwoLines(text, line1, line2, DISPLAY_WIDTH - 15);
 
             bool hasLine2 = !line2.isEmpty();
             int textBlockHeight = lineHeight * (hasLine2 ? 2 : 1);

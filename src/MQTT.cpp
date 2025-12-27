@@ -57,8 +57,9 @@ namespace mqtt
         {
             JsonDocument doc;
 
-            doc["cpumhz"] = ESP.getCpuFreqMHz();
-            doc["rssi"] = WiFi.isConnected() ? WiFi.RSSI() : 0;
+            doc["idle"] = idleFlag;
+            doc["cpu_freq"] = ESP.getCpuFreqMHz();
+            doc["rssi"] = network::getRSSI();
             doc["heap_free"] = ESP.getFreeHeap();
             doc["heap_min"] = ESP.getMinFreeHeap();
 

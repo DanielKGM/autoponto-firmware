@@ -88,6 +88,11 @@ namespace network
         }
     } //
 
+    int8_t getRSSI()
+    {
+        return isConnected() ? WiFi.RSSI() : 0;
+    }
+
     bool isConnected()
     {
         return WiFi.status() == WL_CONNECTED;
