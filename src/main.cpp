@@ -99,16 +99,12 @@ void loop()
         if (checkState(SystemState::WORKING))
         {
             enterIdle();
+            setState(SystemState::IDLE);
         }
         else
         {
             lastSensorTick = now;
         }
-    }
-
-    if (idleFlag)
-    {
-        setState(SystemState::IDLE);
     }
 
     if ((now - lastSensorTick) > ticksToSleep && checkState(SystemState::IDLE))

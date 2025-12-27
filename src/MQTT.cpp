@@ -57,7 +57,6 @@ namespace mqtt
         {
             JsonDocument doc;
 
-            doc["idle"] = idleFlag;
             doc["cpu_freq"] = ESP.getCpuFreqMHz();
             doc["rssi"] = network::getRSSI();
             doc["heap_free"] = ESP.getFreeHeap();
