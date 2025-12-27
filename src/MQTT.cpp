@@ -196,6 +196,7 @@ namespace mqtt
 
             if (checkState(SystemState::NET_OFF))
             {
+                mqtt.loop();
                 continue;
             }
 
@@ -207,8 +208,6 @@ namespace mqtt
                 {
                     setState(idleFlag ? SystemState::IDLE : SystemState::WORKING);
                 }
-
-                continue;
             }
 
             if ((xTaskGetTickCount() - lastLogTick) > logInterval && xQueueReceive(mqttQueue, lastMsg, 0) == pdTRUE)
