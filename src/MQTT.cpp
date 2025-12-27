@@ -12,7 +12,6 @@ namespace mqtt
 {
     namespace
     {
-        volatile bool loggerFlag;
         char topicCmd[MQTT_TOPIC_SIZE];
         char topicLogs[MQTT_TOPIC_SIZE];
         char topicStatus[MQTT_TOPIC_SIZE];
@@ -33,7 +32,7 @@ namespace mqtt
 
         void publishLog(const char *tag, const char *msg)
         {
-            if (!loggerFlag || !mqttQueue)
+            if (!mqttQueue)
             {
                 return;
             }
@@ -90,14 +89,13 @@ namespace mqtt
         bool connMqtt()
         {
             using namespace display;
-            char msg[DISPLAY_MSG_MAX_LEN];
 
             const TickType_t start = xTaskGetTickCount();
             const TickType_t timeout = pdMS_TO_TICKS(MQTT_TIMEOUT_MS);
 
-            while (!mqtt.connected())
+            while (!isConnected())
             {
-                if ((WiFi.status() != WL_CONNECTED) || (xTaskGetTickCount() - start > timeout))
+                if (!network::isConnected() || (xTaskGetTickCount() - start > timeout))
                 {
                     sendDisplayMessage("MQTT falhou!", 2000, &ICON_SAD);
                     return false;
@@ -122,28 +120,6 @@ namespace mqtt
             return true;
         }
 
-        void loadLogFlag()
-        {
-            Preferences prefs;
-            prefs.begin("mqtt", true);
-
-            loggerFlag = prefs.getBool("log", MQTT_LOG_DEFAULT);
-
-            prefs.end();
-        }
-
-        void setLogFlag(bool value)
-        {
-            Preferences prefs;
-            prefs.begin("mqtt", false);
-
-            prefs.putBool("log", value);
-
-            prefs.end();
-
-            loggerFlag = value;
-        }
-
         void mqttCallback(char *topic, byte *payload, unsigned int length)
         {
             JsonDocument doc;
@@ -162,22 +138,11 @@ namespace mqtt
             {
                 publishSystemStats();
             }
-
-            if (doc["log"].is<bool>())
-            {
-                bool newValue = doc["log"];
-
-                if (loggerFlag != newValue)
-                {
-                    setLogFlag(newValue);
-                }
-            }
         }
 
         bool configMqtt()
         {
             buildTopics();
-            loadLogFlag();
 
             mqtt.setClient(network::wifiClient);
             mqtt.setServer(MQTT_URL, MQTT_PORT);
@@ -187,9 +152,14 @@ namespace mqtt
         }
     } //
 
+    bool isConnected()
+    {
+        return mqtt.connected();
+    }
+
     void publishStatus(const char *payload)
     {
-        if (mqtt.connected())
+        if (isConnected())
         {
             mqtt.publish(topicStatus, payload, true);
         }
@@ -203,17 +173,32 @@ namespace mqtt
 
         const TickType_t delay = pdMS_TO_TICKS(100);
 
+        // wait first boot and first connection
+        while (checkState(SystemState::BOOTING) || checkState(SystemState::NET_OFF))
+        {
+            if (checkSleepEvent(delay))
+            {
+                break;
+            }
+        }
+
         char lastMsg[MQTT_PAYLOAD_MAX];
         TickType_t lastLogTick = 0;
         const TickType_t logInterval = pdMS_TO_TICKS(MQTT_LOG_INTERVAL_MS);
 
         while (true)
         {
+            if (checkSleepEvent(delay))
+            {
+                break;
+            }
 
-            bool isConnected = mqtt.connected();
+            if (checkState(SystemState::NET_OFF))
+            {
+                continue;
+            }
 
-            if (!isConnected &&
-                !(checkState(SystemState::NET_OFF) || checkState(SystemState::BOOTING)))
+            if (!isConnected())
             {
                 setState(SystemState::MQTT_OFF);
 
@@ -221,24 +206,17 @@ namespace mqtt
                 {
                     setState(idleFlag ? SystemState::IDLE : SystemState::WORKING);
                 }
+
+                continue;
             }
 
-            if (loggerFlag && isConnected && (xTaskGetTickCount() - lastLogTick) > logInterval)
+            if ((xTaskGetTickCount() - lastLogTick) > logInterval && xQueueReceive(mqttQueue, lastMsg, 0) == pdTRUE)
             {
                 lastLogTick = xTaskGetTickCount();
-
-                if (xQueueReceive(mqttQueue, lastMsg, 0) == pdTRUE)
-                {
-                    mqtt.publish(topicLogs, lastMsg, false);
-                }
+                mqtt.publish(topicLogs, lastMsg, false);
             }
 
             mqtt.loop();
-
-            if (checkSleepEvent(delay))
-            {
-                break;
-            }
         }
 
         changeTaskCount(-1);

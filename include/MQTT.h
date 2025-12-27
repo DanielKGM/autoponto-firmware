@@ -4,6 +4,7 @@
 
 namespace mqtt
 {
+    bool isConnected();
     void publishStatus(const char *payload);
     void TaskMqttCode(void *pvParameters);
 }

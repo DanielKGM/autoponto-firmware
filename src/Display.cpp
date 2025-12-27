@@ -16,12 +16,6 @@ namespace display
 
     namespace
     {
-        constexpr int BOX_WIDTH = DISPLAY_WIDTH - 50;
-        constexpr int BOX_HEIGHT = 55;
-        constexpr int BOX_BORDER = 2;
-        constexpr int BOX_PADDING = 8;
-        constexpr int ICON_SPACING = 10;
-
         struct DisplayMessage
         {
             char text[DISPLAY_MSG_MAX_LEN];
@@ -41,53 +35,91 @@ namespace display
             return 1;
         }
 
+        void splitTextTwoLines(const String &text, String &line1, String &line2, int maxWidth)
+        {
+            if (spr.textWidth(text) <= maxWidth)
+            {
+                line1 = text;
+                line2 = "";
+                return;
+            }
+
+            int splitIndex = -1;
+            String currentText = "";
+
+            for (int i = 0; i < text.length(); i++)
+            {
+                if (text[i] == ' ')
+                {
+                    if (spr.textWidth(text.substring(0, i)) > maxWidth)
+                    {
+                        break;
+                    }
+                    splitIndex = i;
+                }
+            }
+
+            if (splitIndex == -1)
+            {
+                splitIndex = text.length();
+            }
+
+            line1 = text.substring(0, splitIndex);
+            line2 = text.substring(splitIndex + 1);
+
+            if (spr.textWidth(line2) > maxWidth)
+            {
+                String ellipsis = "...";
+
+                int ellipsisWidth = spr.textWidth(ellipsis);
+
+                while (line2.length() > 0 &&
+                       spr.textWidth(line2) + ellipsisWidth > maxWidth)
+                {
+                    line2.remove(line2.length() - 1);
+                }
+
+                line2 += ellipsis;
+            }
+        }
+
         void showText(const char *text, const Icon *icon)
         {
+            spr.fillScreen(TFT_BLACK);
 
-            if (icon == &ICON_HAPPY)
-            {
-                spr.fillScreen(TFT_DARKGREEN);
-            }
-            else if (icon == &ICON_SAD)
-            {
-                spr.fillScreen(TFT_MAGENTA);
-            }
-            else
-            {
-                spr.fillScreen(TFT_BLACK);
-            }
+            const int iconSpacing = 10;
+            const int lineHeight = spr.fontHeight();
+            const int iconH = icon ? icon->height : 0;
+            const int iconW = icon ? icon->width : 0;
 
-            int iconH = icon ? icon->height : 0;
-            int iconW = icon ? icon->width : 0;
+            String line1;
+            String line2;
 
-            int totalH = BOX_HEIGHT + (icon ? iconH + ICON_SPACING : 0);
+            splitTextTwoLines(text, line1, line2, DISPLAY_WIDTH - 10);
 
-            int y = (DISPLAY_HEIGHT - totalH) / 2;
+            bool hasLine2 = !line2.isEmpty();
+            int textBlockHeight = lineHeight * (hasLine2 ? 2 : 1);
+            int totalHeight = iconH + (icon ? iconSpacing : 0) + textBlockHeight;
 
+            int startY = (DISPLAY_HEIGHT - totalHeight) / 2;
+
+            //
             if (icon)
             {
                 int iconX = (DISPLAY_WIDTH - iconW) / 2;
-                spr.pushImage(iconX, y, iconW, iconH, icon->data);
-                y += iconH + ICON_SPACING;
+                spr.pushImage(iconX, startY, iconW, iconH, icon->data);
+                startY += iconH + iconSpacing;
             }
 
-            int boxX = (DISPLAY_WIDTH - BOX_WIDTH) / 2;
-            int boxY = y;
+            //
+            int centerX = DISPLAY_WIDTH / 2;
 
-            spr.drawRect(boxX, boxY, BOX_WIDTH, BOX_HEIGHT, TFT_WHITE);
+            spr.drawString(line1, centerX, startY + (lineHeight / 2));
 
-            spr.fillRect(
-                boxX + BOX_BORDER,
-                boxY + BOX_BORDER,
-                BOX_WIDTH - (BOX_BORDER * 2),
-                BOX_HEIGHT - (BOX_BORDER * 2),
-                TFT_BLACK);
-
-            spr.setCursor(
-                static_cast<int16_t>(boxX + BOX_BORDER + BOX_PADDING),
-                static_cast<int16_t>(boxY + BOX_BORDER + BOX_PADDING));
-
-            spr.printToSprite(text);
+            if (hasLine2)
+            {
+                spr.drawString(line2, centerX, startY + lineHeight + (lineHeight / 2));
+            }
 
             spr.pushRotated(270);
         }
@@ -150,15 +182,14 @@ namespace display
         spr.createSprite(DISPLAY_WIDTH, DISPLAY_HEIGHT);
         spr.setSwapBytes(false);
         spr.setTextColor(TFT_WHITE, TFT_BLACK);
-        spr.setTextDatum(TL_DATUM);
+        spr.setTextDatum(MC_DATUM);
         spr.setTextWrap(true);
-        spr.setTextSize(1);
-        spr.loadFont(determination);
+        spr.setFreeFont(&Determination);
     }
 
     bool sendDisplayMessage(const char *text, unsigned long durationMs, const Icon *icon)
     {
-        if (!messageQueue)
+        if (!messageQueue || idleFlag)
         {
             return false;
         }
@@ -183,14 +214,12 @@ namespace display
         bool hasMessage = false;
         TickType_t overlayUntil = 0;
 
-        const TickType_t normalDelay = pdMS_TO_TICKS(100);
+        TickType_t delay = pdMS_TO_TICKS(100);
         const TickType_t idleDelay = pdMS_TO_TICKS(1000);
         const TickType_t videoDelay = pdMS_TO_TICKS(5);
 
         while (true)
         {
-            TickType_t delay = idleFlag ? idleDelay : normalDelay;
-
             TickType_t now = xTaskGetTickCount();
 
             if (hasMessage && now >= overlayUntil)
@@ -198,28 +227,27 @@ namespace display
                 hasMessage = false;
             }
 
-            if (!hasMessage && xQueueReceive(messageQueue, &msg, 0) == pdPASS)
+            if (idleFlag)
             {
-                hasMessage = true;
-                overlayUntil = (msg.duration > 0) ? (now + msg.duration) : 0;
-                if (idleFlag)
+                tft.fillScreen(TFT_BLACK);
+            }
+            else
+            {
+                if (!hasMessage && xQueueReceive(messageQueue, &msg, 0) == pdPASS)
                 {
-                    tft.fillScreen(TFT_BLACK);
-                }
-                else
-                {
+                    hasMessage = true;
+                    overlayUntil = (msg.duration > 0) ? (now + msg.duration) : 0;
                     showText(msg.text, msg.icon);
                 }
+
+                if (!hasMessage && checkState(SystemState::WORKING))
+                {
+                    showCamFrame(ulTaskNotifyTake(pdTRUE, 0) > 0);
+                    delay = videoDelay;
+                }
             }
 
-            if (!hasMessage && checkState(SystemState::WORKING))
-            {
-                showCamFrame(ulTaskNotifyTake(pdTRUE, 0) > 0);
-                spr.drawString(power::sensorTriggered ? "true" : "false", 40, 40);
-                delay = videoDelay;
-            }
-
-            if (checkSleepEvent(delay))
+            if (checkSleepEvent(idleFlag ? idleDelay : delay))
             {
                 break;
             }

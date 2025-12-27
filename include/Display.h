@@ -1,7 +1,7 @@
 #pragma once
-#include "esp_camera.h"
 #include <JPEGDEC.h>
 #include <TFT_eSPI.h>
+#include "esp_camera.h"
 
 namespace display
 {

@@ -2,6 +2,8 @@
 #include "Globals.h"
 #include "Config.h"
 #include "Camera.h"
+#include "MQTT.h"
+#include "Network.h"
 #include "esp_wifi.h"
 
 namespace power
@@ -45,8 +47,6 @@ namespace power
         digitalWrite(DISPLAY_ENABLE_PIN, LOW);
         setCpuFrequencyMhz(160);
         esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
-
-        setState(SystemState::IDLE);
         idleFlag = true;
     }
 
@@ -57,11 +57,24 @@ namespace power
             return;
         }
 
+        idleFlag = false;
         setCpuFrequencyMhz(240);
         digitalWrite(DISPLAY_ENABLE_PIN, HIGH);
         esp_wifi_set_ps(WIFI_PS_NONE);
+
+        if (!network::isConnected())
+        {
+            setState(SystemState::NET_OFF);
+            return;
+        }
+
+        if (!mqtt::isConnected())
+        {
+            setState(SystemState::MQTT_OFF);
+            return;
+        }
+
         setState(SystemState::WORKING);
-        idleFlag = false;
     }
 
     void configPins()

@@ -13,7 +13,7 @@ namespace network
         {
             using namespace display;
 
-            if (WiFi.status() != WL_CONNECTED)
+            if (!isConnected())
             {
                 return false;
             }
@@ -39,7 +39,7 @@ namespace network
 
             if (resp != HTTP_CODE_OK)
             {
-                sendDisplayMessage("Erro ao enviar captura!", 1000, &ICON_SAD);
+                sendDisplayMessage("Erro ao enviar captura! <>/?() ABACADABRABATARAMACANEORIDBAVHAADWDWDWDWDWDWDWDWDWDYDFFKJ", 1000, &ICON_SAD);
             }
 
             return resp == HTTP_CODE_OK;
@@ -58,7 +58,7 @@ namespace network
             const TickType_t start = xTaskGetTickCount();
             const TickType_t timeout = pdMS_TO_TICKS(WIFI_TIMEOUT_MS);
 
-            while (WiFi.status() != WL_CONNECTED)
+            while (!isConnected())
             {
                 if (xTaskGetTickCount() - start > timeout)
                 {
@@ -88,9 +88,16 @@ namespace network
         }
     } //
 
+    bool isConnected()
+    {
+        return WiFi.status() == WL_CONNECTED;
+    }
+
     void TaskNetworkCode(void *pvParameters)
     {
         changeTaskCount(1);
+
+        setState(SystemState::NET_OFF);
 
         if (configWifi())
         {
@@ -106,9 +113,12 @@ namespace network
 
         while (true)
         {
-            TickType_t now = xTaskGetTickCount();
+            if (checkSleepEvent(delay))
+            {
+                break;
+            }
 
-            if (WiFi.status() != WL_CONNECTED)
+            if (!isConnected())
             {
                 setState(SystemState::NET_OFF);
 
@@ -116,9 +126,29 @@ namespace network
                 {
                     setState(SystemState::NET_ON);
                 }
+
+                continue;
             }
 
-            if ((now - lastReqTick > reqInterval) && checkState(SystemState::WORKING))
+            TickType_t now = xTaskGetTickCount();
+
+            if (checkState(SystemState::WAITING_SERVER))
+            {
+                bool response = false; // response condition
+
+                // no response
+                if (!response && now - lastReqTick > waitInterval)
+                {
+                    setState(SystemState::WORKING);
+                    continue;
+                }
+
+                // process response
+                setState(SystemState::WORKING);
+                continue;
+            }
+
+            if (checkState(SystemState::WORKING) && now - lastReqTick > reqInterval)
             {
                 lastReqTick = now;
 
@@ -131,16 +161,6 @@ namespace network
                 {
                     setState(SystemState::WAITING_SERVER);
                 }
-            }
-
-            if ((now - lastReqTick > waitInterval) && checkState(SystemState::WAITING_SERVER))
-            {
-                setState(idleFlag ? SystemState::IDLE : SystemState::WORKING);
-            }
-
-            if (checkSleepEvent(delay))
-            {
-                break;
             }
         }
 
