@@ -24,7 +24,6 @@ extern char deviceId[13];
 extern TaskHandle_t TaskDisplay;
 extern TaskHandle_t TaskNetwork;
 extern TaskHandle_t TaskMqtt;
-extern volatile bool idleFlag;
 
 void changeTaskCount(short int delta);
 short int checkTaskCount();

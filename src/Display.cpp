@@ -220,7 +220,7 @@ namespace display
 
     bool sendDisplayMessage(const char *text, unsigned long durationMs, const Icon *icon)
     {
-        if (!messageQueue || idleFlag)
+        if (!messageQueue || power::checkIdle())
         {
             return false;
         }
@@ -254,7 +254,7 @@ namespace display
             TickType_t now = xTaskGetTickCount();
 
             //
-            if (idleFlag)
+            if (power::checkIdle())
             {
                 msg = DisplayMessage{};
                 tft.fillScreen(TFT_BLACK);

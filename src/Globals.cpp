@@ -7,8 +7,6 @@ portMUX_TYPE systemStateMux = portMUX_INITIALIZER_UNLOCKED;
 volatile short int tasksAlive = 0;
 
 // extern
-volatile bool idleFlag = false;
-
 char deviceId[13];
 EventGroupHandle_t systemEvents = xEventGroupCreate();
 TaskHandle_t TaskDisplay;

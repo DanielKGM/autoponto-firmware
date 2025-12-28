@@ -13,6 +13,8 @@ namespace power
 
     namespace
     {
+        volatile bool idleFlag = false;
+
         portMUX_TYPE sensorMux = portMUX_INITIALIZER_UNLOCKED;
 
         void IRAM_ATTR handlePIRInterrupt()
@@ -21,6 +23,10 @@ namespace power
             sensorTriggered = true;
             portEXIT_CRITICAL_ISR(&sensorMux);
         }
+    }
+    bool checkIdle()
+    {
+        return idleFlag;
     }
 
     void changeTriggeredFlag(bool value)

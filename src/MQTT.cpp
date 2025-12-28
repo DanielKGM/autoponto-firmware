@@ -205,7 +205,8 @@ namespace mqtt
 
                 if (connMqtt())
                 {
-                    setState(idleFlag ? SystemState::IDLE : SystemState::WORKING);
+                    SystemState newState = power::checkIdle() ? SystemState::IDLE : SystemState::WORKING;
+                    setState(newState);
                 }
             }
 

@@ -90,11 +90,11 @@ void loop()
 
     if (buzzerTriggered)
     {
-        power::buzzerTriggered = false;
+        buzzerTriggered = false;
         positiveFB();
     }
 
-    if (!idleFlag && (now - lastSensorTick) > ticksToIdle)
+    if (!checkIdle() && (now - lastSensorTick) > ticksToIdle)
     {
         if (checkState(SystemState::WORKING))
         {
