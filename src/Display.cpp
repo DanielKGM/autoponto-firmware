@@ -10,8 +10,8 @@ namespace display
     QueueHandle_t frameQueue = xQueueCreate(1, sizeof(FrameBuffer));
 
     const Icon ICON_WIFI = {wifi_icon, 38, 38, TFT_BLACK};
-    const Icon ICON_SAD = {sad_icon, 38, 38, TFT_MAGENTA};
-    const Icon ICON_HAPPY = {happy_icon, 38, 38, TFT_DARKGREEN};
+    const Icon ICON_SAD = {sad_icon, 38, 38, TFT_RED};
+    const Icon ICON_HAPPY = {happy_icon, 38, 38, TFT_GREEN};
     const Icon ICON_SERVER = {server_icon, 38, 38, TFT_BLACK};
 
     namespace
@@ -78,9 +78,10 @@ namespace display
             }
         }
 
-        void showText(const char *text, const Icon *icon)
+        void showText(const char *text, const Icon *icon, int spinnerAngle = 0)
         {
-            const int spriteMargin = 15;
+            const int spinnerThickness = 8;
+            const int spriteMargin = spinnerThickness + 6;
             const int spriteW = DISPLAY_WIDTH - (spriteMargin * 2);
             const int lineH = spr.fontHeight();
             const int spacing = 10;
@@ -97,7 +98,6 @@ namespace display
                 lineH * (hasLine2 ? 2 : 1);
 
             spr.createSprite(spriteW, static_cast<int16_t>(contentH));
-            spr.fillSprite(TFT_BLACK);
 
             int y = 0;
 
@@ -121,13 +121,38 @@ namespace display
                 spr.drawString(l2, cx, y + lineH + lineH / 2);
             }
 
-            bgSpr.fillScreen(hasIcon ? icon->color : TFT_BLACK);
+            bgSpr.fillSprite(hasIcon ? icon->color : TFT_BLACK);
 
-            spr.pushToSprite(
-                &bgSpr,
-                spriteMargin,
-                (DISPLAY_HEIGHT - contentH) / 2,
-                TFT_BLACK);
+            if (spinnerAngle > 0)
+            {
+                const int radius = DISPLAY_WIDTH / 2;
+                bgSpr.drawArc(
+                    DISPLAY_WIDTH / 2,
+                    DISPLAY_HEIGHT / 2,
+                    radius,
+                    radius - spinnerThickness,
+                    0,
+                    spinnerAngle,
+                    TFT_WHITE,
+                    TFT_WHITE);
+            }
+
+            if (hasIcon && icon->color != TFT_BLACK)
+            {
+                spr.pushToSprite(
+                    &bgSpr,
+                    spriteMargin,
+                    (DISPLAY_HEIGHT - contentH) / 2,
+                    TFT_BLACK);
+            }
+            else
+            {
+                spr.pushToSprite(
+                    &bgSpr,
+                    spriteMargin,
+                    (DISPLAY_HEIGHT - contentH) / 2);
+            }
+
             spr.deleteSprite();
             bgSpr.pushRotated(270);
         }
@@ -188,7 +213,7 @@ namespace display
     void configSprite()
     {
         bgSpr.createSprite(DISPLAY_WIDTH, DISPLAY_HEIGHT);
-        spr.setTextColor(TFT_WHITE, TFT_BLACK);
+        spr.setTextColor(TFT_WHITE);
         spr.setTextDatum(MC_DATUM);
         spr.setFreeFont(&Determination);
     }
@@ -216,8 +241,6 @@ namespace display
         configSprite();
 
         DisplayMessage msg{};
-
-        bool hasMessage = false;
         TickType_t overlayUntil = 0;
 
         const TickType_t idleDelay = pdMS_TO_TICKS(1000);
@@ -228,41 +251,44 @@ namespace display
 
         while (true)
         {
-            currentDelay = idleFlag ? idleDelay : currentDelay;
+            TickType_t now = xTaskGetTickCount();
+
+            //
+            if (idleFlag)
+            {
+                msg = DisplayMessage{};
+                tft.fillScreen(TFT_BLACK);
+                currentDelay = idleDelay;
+            }
+            else if (overlayUntil > now && msg.duration > 0)
+            {
+                int spinnerAngle =
+                    360 - ((360UL * (overlayUntil - now)) / msg.duration);
+                showText(msg.text, msg.icon, spinnerAngle);
+            }
+            else if (xQueueReceive(messageQueue, &msg, 0) == pdPASS)
+            {
+                //
+                overlayUntil = (msg.duration > 0) ? (now + msg.duration) : 0;
+                showText(msg.text, msg.icon);
+                currentDelay = normalDelay;
+            }
+            else if (checkState(SystemState::WORKING))
+            {
+                showCamFrame(ulTaskNotifyTake(pdTRUE, 0) > 0);
+                currentDelay = videoDelay;
+            }
 
             if (checkSleepEvent(currentDelay))
             {
                 break;
             }
 
-            TickType_t now = xTaskGetTickCount();
-
-            if (hasMessage && now >= overlayUntil)
-            {
-                hasMessage = false;
-            }
-
-            if (idleFlag)
-            {
-                tft.fillScreen(TFT_BLACK);
-                continue;
-            }
-
-            if (!hasMessage && xQueueReceive(messageQueue, &msg, 0) == pdPASS)
-            {
-                hasMessage = true;
-                overlayUntil = (msg.duration > 0) ? (now + msg.duration) : 0;
-                showText(msg.text, msg.icon);
-            }
-
-            if (!hasMessage && checkState(SystemState::WORKING))
-            {
-                showCamFrame(ulTaskNotifyTake(pdTRUE, 0) > 0);
-                currentDelay = videoDelay;
-            }
+            vTaskDelay(currentDelay);
         }
 
         changeTaskCount(-1);
         vTaskDelete(nullptr);
     }
+
 }
