@@ -30,33 +30,11 @@ namespace mqtt
                      "sts/%s", deviceId);
         }
 
-        void publishLog(const char *tag, const char *msg)
-        {
-            if (!mqttQueue)
-            {
-                return;
-            }
-
-            JsonDocument doc;
-            doc["id"] = deviceId;
-            doc["tag"] = tag;
-            doc["msg"] = msg;
-
-            if (doc.overflowed() || measureJson(doc) >= MQTT_PAYLOAD_MAX)
-            {
-                return;
-            }
-
-            char out[MQTT_PAYLOAD_MAX];
-            serializeJson(doc, out, sizeof(out));
-
-            xQueueSend(mqttQueue, out, 0);
-        }
-
         void publishSystemStats()
         {
             JsonDocument doc;
 
+            doc["id"] = deviceId;
             doc["cpu_freq"] = ESP.getCpuFreqMHz();
             doc["rssi"] = network::getRSSI();
             doc["heap_free"] = ESP.getFreeHeap();
@@ -83,7 +61,7 @@ namespace mqtt
             static char msg[MQTT_PAYLOAD_MAX];
             serializeJson(doc, msg, sizeof(msg));
 
-            publishLog("stats", msg);
+            xQueueSend(mqttQueue, msg, 0);
         }
 
         bool connMqtt()
