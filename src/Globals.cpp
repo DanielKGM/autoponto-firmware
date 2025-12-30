@@ -40,13 +40,6 @@ bool checkState(SystemState state)
     return (systemState == state);
 }
 
-void triggerSleepEvent()
-{
-    setState(SystemState::SLEEPING);
-    xEventGroupSetBits(systemEvents, EVT_SLEEP);
-    vTaskDelay(pdMS_TO_TICKS(100));
-}
-
 bool checkSleepEvent(TickType_t waitInterval)
 {
     return xEventGroupWaitBits(

@@ -1,5 +1,6 @@
 #pragma once
 #include "driver/rtc_io.h"
+#include "esp_wifi.h"
 #include "esp32-hal-cpu.h"
 #include <WiFi.h>
 
@@ -16,4 +17,5 @@ namespace power
     void enterIdle();
     void exitIdle();
     bool checkIdle();
+    void triggerSleepEvent();
 }

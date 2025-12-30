@@ -159,7 +159,7 @@ namespace mqtt
 
         const TickType_t delay = pdMS_TO_TICKS(100);
 
-        // wait first boot and first connection
+        // wait boot and first connection
         while (checkState(SystemState::BOOTING) || checkState(SystemState::NET_OFF))
         {
             if (checkSleepEvent(delay))

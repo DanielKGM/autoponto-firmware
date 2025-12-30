@@ -76,6 +76,7 @@ void setup()
         APP_CPU_NUM);
 }
 
+// loop = TaskPowerCode
 void loop()
 {
     using namespace power;

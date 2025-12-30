@@ -36,6 +36,5 @@ void changeTaskCount(short int delta);
 short int checkTaskCount();
 void setState(SystemState newState);
 bool checkState(SystemState state);
-void triggerSleepEvent();
 bool checkSleepEvent(TickType_t waitInterval);
 const char *stateStr(SystemState state);

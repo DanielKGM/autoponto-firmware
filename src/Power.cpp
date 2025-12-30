@@ -4,7 +4,6 @@
 #include "Camera.h"
 #include "MQTT.h"
 #include "Network.h"
-#include "esp_wifi.h"
 
 namespace power
 {
@@ -98,6 +97,13 @@ namespace power
         esp_sleep_enable_ext0_wakeup((gpio_num_t)PIR_PIN, 1);
         rtc_gpio_pullup_dis((gpio_num_t)PIR_PIN);
         rtc_gpio_pulldown_en((gpio_num_t)PIR_PIN);
+    }
+
+    void triggerSleepEvent()
+    {
+        setState(SystemState::SLEEPING);
+        xEventGroupSetBits(systemEvents, EVT_SLEEP);
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 
     __attribute__((noreturn)) void sleep()
