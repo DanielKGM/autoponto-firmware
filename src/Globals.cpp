@@ -37,28 +37,48 @@ void saveContext(uint8_t flags)
     prefs.end();
 }
 
-void loadContext(uint8_t flags)
+bool loadContext(uint8_t flags)
 {
     Preferences prefs;
 
-    prefs.begin("context", true);
+    if (!prefs.begin("context", true))
+        return false;
+
+    bool foundAny = false;
 
     if ((flags & MSG) && prefs.isKey("msg"))
+    {
         prefs.getString("msg", context.msg, sizeof(context.msg));
+        foundAny = true;
+    }
 
-    if (flags & MS_NEXT)
-        context.msForNext = prefs.getULong("msForNext", context.msForNext);
+    if ((flags & MS_NEXT) && prefs.isKey("msForNext"))
+    {
+        context.msForNext = prefs.getULong("msForNext");
+        foundAny = true;
+    }
 
-    if (flags & MS_REM)
-        context.msRemaining = prefs.getULong("msRemaining", context.msRemaining);
+    if ((flags & MS_REM) && prefs.isKey("msRemaining"))
+    {
+        context.msRemaining = prefs.getULong("msRemaining");
+        foundAny = true;
+    }
 
-    if (flags & SYNCED)
-        context.synced = prefs.getBool("synced", context.synced);
+    if ((flags & SYNCED) && prefs.isKey("synced"))
+    {
+        context.synced = prefs.getBool("synced");
+        foundAny = true;
+    }
 
-    if (flags & UPDATE)
-        context.shouldUpdate = prefs.getBool("shouldUpdate", context.shouldUpdate);
+    if ((flags & UPDATE) && prefs.isKey("shouldUpdate"))
+    {
+        context.shouldUpdate = prefs.getBool("shouldUpdate");
+        foundAny = true;
+    }
 
     prefs.end();
+
+    return foundAny;
 }
 
 void changeTaskCount(short int delta)

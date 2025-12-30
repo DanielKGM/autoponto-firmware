@@ -19,12 +19,12 @@ enum class SystemState
 
 enum ContextFields
 {
-    MSG = 1 << 0,
-    MS_NEXT = 1 << 1,
-    MS_REM = 1 << 2,
-    SYNCED = 1 << 3,
-    UPDATE = 1 << 4,
-    ALL = 0xFF
+    MSG = 1 << 0,     // 00000001
+    MS_NEXT = 1 << 1, // 00000010
+    MS_REM = 1 << 2,  // 00000100
+    SYNCED = 1 << 3,  // 00001000
+    UPDATE = 1 << 4,  // 00010000
+    ALL = 0xFF        // 11111111
 };
 
 struct AttendanceContext
@@ -44,7 +44,7 @@ extern TaskHandle_t TaskNetwork;
 extern TaskHandle_t TaskMqtt;
 
 void saveContext(uint8_t fields = ALL);
-void loadContext(uint8_t fiels = ALL);
+bool loadContext(uint8_t fiels = ALL);
 void changeTaskCount(short int delta);
 short int checkTaskCount();
 void setState(SystemState newState);
