@@ -59,40 +59,36 @@ namespace network
             HTTPClient http;
             http.setTimeout(REST_TIMEOUT_MS);
             http.begin(String(REST_GET_URL) + String(deviceId));
+            http.addHeader("X-Device-Id", deviceId);
+            http.addHeader("X-Auth", REST_PASS);
 
-            int resp;
-            const TickType_t start = xTaskGetTickCount();
-            const TickType_t timeout = pdMS_TO_TICKS(REST_TIMEOUT_MS);
+            sendDisplayMessage("Coletando informações da turma...", 0, &ICON_SERVER);
 
-            while (resp != HTTP_CODE_OK)
+            int resp = http.GET();
+
+            if (resp != HTTP_CODE_OK)
             {
-                resp = http.GET();
-
-                if (xTaskGetTickCount() - start > timeout)
-                {
-                    sendDisplayMessage("Resposta inválida do servidor! (" + resp + ')', 3000, &ICON_SAD);
-                }
-
-                sendDisplayMessage("Coletando informações da turma...", 0, &ICON_SERVER);
-
-                vTaskDelay(pdMS_TO_TICKS(500));
+                sendDisplayMessage("Servidor indisponivel!", 3000, &ICON_SAD);
+                http.end();
+                return false;
             }
 
             JsonDocument doc;
             DeserializationError error = deserializeJson(doc, http.getStream());
-            http.end();
 
             if (error)
             {
-                sendDisplayMessage("Erro ao analisar informações!", 3000, &ICON_SAD);
+                sendDisplayMessage("Erro ao analisar informacoes!", 3000, &ICON_SAD);
+                http.end();
                 return false;
             }
 
-            const char *msgTemp = doc["chair"] | "";
-            strlcpy(context.chair, msgTemp, sizeof(context.chair));
-            context.msForNext = doc["msForNext"] | 0;
-            context.msRemaining = doc["msRemaining"] | 0;
+            strlcpy(context.chair, doc["chair"] | "", sizeof(context.chair));
+            context.msForNext = pdMS_TO_TICKS(doc["msForNext"]) | 0;
+            context.msRemaining = pdMS_TO_TICKS(doc["msRemaining"]) | 0;
+            context.fetchTime = xTaskGetTickCount();
 
+            http.end();
             return true;
         }
 
@@ -189,13 +185,15 @@ namespace network
 
             if (checkState(SystemState::FETCHING))
             {
-                if (context.chair && (context.msForNext || context.msRemaining))
-                {
-                    setState(power::checkIdle() ? SystemState::IDLE : SystemState::WORKING);
-                }
-                else if (getContext())
+                if (context.chair[0] != '\0' &&
+                    (context.msForNext > 0 || context.msRemaining > 0))
                 {
                     mqtt::publish(mqtt::topicLogs, "{\"synced\":true}", true);
+                    setState(power::checkIdle() ? SystemState::IDLE : SystemState::WORKING);
+                }
+                else
+                {
+                    getContext();
                 }
             }
             else if (checkState(SystemState::WAITING_SERVER))

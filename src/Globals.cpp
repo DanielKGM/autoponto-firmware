@@ -14,6 +14,15 @@ TaskHandle_t TaskNetwork;
 TaskHandle_t TaskMqtt;
 AttendanceContext context = AttendanceContext{};
 
+void clearContext()
+{
+    context.fetchTime = 0;
+    context.chair[0] = '\0';
+    context.msForNext = 0;
+    context.msRemaining = 0;
+    setState(SystemState::FETCHING);
+}
+
 void changeTaskCount(short int delta)
 {
     portENTER_CRITICAL(&tasksAliveMux);

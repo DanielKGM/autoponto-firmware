@@ -76,11 +76,19 @@ void setup()
         APP_CPU_NUM);
 }
 
-// loop = TaskPowerCode
 void loop()
 {
     using namespace power;
     TickType_t now = xTaskGetTickCount();
+
+    if (context.msRemaining > 0 && (now - context.fetchTime > context.msRemaining))
+    {
+        clearContext();
+    }
+    else if (context.msForNext > 0 && (now - context.fetchTime > context.msForNext))
+    {
+        clearContext();
+    }
 
     if (sensorTriggered)
     {

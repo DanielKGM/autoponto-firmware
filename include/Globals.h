@@ -21,8 +21,9 @@ enum class SystemState
 struct AttendanceContext
 {
     char chair[CHAIR_STR_LENGTH];
-    unsigned long msForNext;
-    unsigned long msRemaining;
+    TickType_t msForNext;
+    TickType_t msRemaining;
+    TickType_t fetchTime;
 };
 
 extern AttendanceContext context;
@@ -32,6 +33,7 @@ extern TaskHandle_t TaskDisplay;
 extern TaskHandle_t TaskNetwork;
 extern TaskHandle_t TaskMqtt;
 
+void clearContext();
 void changeTaskCount(short int delta);
 short int checkTaskCount();
 void setState(SystemState newState);

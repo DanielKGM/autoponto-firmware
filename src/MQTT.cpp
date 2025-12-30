@@ -74,30 +74,27 @@ namespace mqtt
         {
             using namespace display;
 
-            const TickType_t start = xTaskGetTickCount();
-            const TickType_t timeout = pdMS_TO_TICKS(MQTT_TIMEOUT_MS);
-
-            while (!isConnected())
+            if (!network::isConnected())
             {
-                if (!network::isConnected() || (xTaskGetTickCount() - start > timeout))
-                {
-                    sendDisplayMessage("MQTT falhou!", 2000, &ICON_SAD);
-                    return false;
-                }
+                return false;
+            }
 
-                sendDisplayMessage("Conectando ao Broker...", 0, &ICON_SERVER);
+            sendDisplayMessage("Conectando ao Broker...", 0, &ICON_SERVER);
 
-                mqtt.connect(
-                    deviceId,
-                    MQTT_USER,
-                    MQTT_PASS,
-                    topicStatus,
-                    1,
-                    true,
-                    "OFFLINE",
-                    true);
+            bool ok = mqtt.connect(
+                deviceId,
+                MQTT_USER,
+                MQTT_PASS,
+                topicStatus,
+                1,
+                true,
+                "OFFLINE",
+                true);
 
-                vTaskDelay(pdMS_TO_TICKS(500));
+            if (!ok)
+            {
+                sendDisplayMessage("Broker indisponivel!", 2000, &ICON_SAD);
+                return false;
             }
 
             mqtt.subscribe(topicCmd, 1);
@@ -116,6 +113,11 @@ namespace mqtt
             if (doc["stats"].is<bool>())
             {
                 publishSystemStats();
+            }
+
+            if (doc["fetch"].is<bool>())
+            {
+                clearContext();
             }
         }
 
@@ -136,7 +138,7 @@ namespace mqtt
         return mqtt.connected();
     }
 
-    void publish(char *topic, char *payload, bool retain)
+    void publish(char *topic, const char *payload, bool retain)
     {
         if (!isConnected())
         {
@@ -144,7 +146,7 @@ namespace mqtt
         }
 
         MqttMsg msg{};
-        strcpy(msg.topic, topicLogs);
+        strcpy(msg.topic, topic);
         strcpy(msg.payload, payload);
         msg.retain = retain;
 
@@ -191,6 +193,7 @@ namespace mqtt
 
                 if (connMqtt())
                 {
+                    vTaskDelay(pdMS_TO_TICKS(500)); // flapping
                     setState(SystemState::FETCHING);
                 }
 
