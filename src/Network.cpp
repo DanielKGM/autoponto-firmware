@@ -2,6 +2,8 @@
 #include "Display.h"
 #include "Config.h"
 #include "Globals.h"
+#include "Power.h"
+#include "MQTT.h"
 
 namespace network
 {
@@ -27,7 +29,7 @@ namespace network
 
             HTTPClient http;
             http.setTimeout(REST_TIMEOUT_MS);
-            http.begin(REST_URL);
+            http.begin(REST_POST_URL);
 
             http.addHeader("Content-Type", "image/jpeg");
             http.addHeader("X-Device-Id", deviceId);
@@ -43,6 +45,55 @@ namespace network
             }
 
             return resp == HTTP_CODE_OK;
+        }
+
+        bool getContext()
+        {
+            using namespace display;
+
+            if (!isConnected())
+            {
+                return false;
+            }
+
+            HTTPClient http;
+            http.setTimeout(REST_TIMEOUT_MS);
+            http.begin(String(REST_GET_URL) + String(deviceId));
+
+            int resp;
+            const TickType_t start = xTaskGetTickCount();
+            const TickType_t timeout = pdMS_TO_TICKS(REST_TIMEOUT_MS);
+
+            while (resp != HTTP_CODE_OK)
+            {
+                resp = http.GET();
+
+                if (xTaskGetTickCount() - start > timeout)
+                {
+                    sendDisplayMessage("Resposta inválida do servidor! (" + resp + ')', 3000, &ICON_SAD);
+                }
+
+                sendDisplayMessage("Coletando informações da turma...", 0, &ICON_SERVER);
+
+                vTaskDelay(pdMS_TO_TICKS(500));
+            }
+
+            JsonDocument doc;
+            DeserializationError error = deserializeJson(doc, http.getStream());
+            http.end();
+
+            if (error)
+            {
+                sendDisplayMessage("Erro ao analisar informações!", 3000, &ICON_SAD);
+                return false;
+            }
+
+            const char *msgTemp = doc["chair"] | "";
+            strlcpy(context.chair, msgTemp, sizeof(context.chair));
+            context.msForNext = doc["msForNext"] | 0;
+            context.msRemaining = doc["msRemaining"] | 0;
+
+            return true;
         }
 
         bool connWifi()
@@ -117,6 +168,7 @@ namespace network
 
         while (true)
         {
+
             if (checkSleepEvent(delay))
             {
                 break;
@@ -132,22 +184,30 @@ namespace network
                 {
                     setState(SystemState::NET_ON);
                 }
-
                 continue;
             }
 
-            if (checkState(SystemState::WAITING_SERVER))
+            if (checkState(SystemState::FETCHING))
+            {
+                if (context.chair && (context.msForNext || context.msRemaining))
+                {
+                    setState(power::checkIdle() ? SystemState::IDLE : SystemState::WORKING);
+                }
+                else if (getContext())
+                {
+                    mqtt::publish(mqtt::topicLogs, "{\"synced\":true}", true);
+                }
+            }
+            else if (checkState(SystemState::WAITING_SERVER))
             {
                 if (now - lastReqTick > waitInterval)
                 {
                     setState(SystemState::WORKING);
                 }
-
-                continue;
             }
-
-            if (checkState(SystemState::WORKING) &&
-                now - lastReqTick > reqInterval)
+            else if (checkState(SystemState::WORKING) &&
+                     now - lastReqTick > reqInterval &&
+                     context.msRemaining)
             {
                 lastReqTick = now;
 

@@ -3,19 +3,15 @@
 #include "Globals.h"
 #include "Network.h"
 #include "Display.h"
-#include "Power.h"
-
-#define MQTT_TOPIC_SIZE 17 // deviceId + '/' + ('log' | 'cmd') + '/0'
-#define MQTT_PAYLOAD_MAX 256
 
 namespace mqtt
 {
+    char topicCmd[MQTT_TOPIC_SIZE];
+    char topicLogs[MQTT_TOPIC_SIZE];
+    char topicStatus[MQTT_TOPIC_SIZE];
+
     namespace
     {
-        char topicCmd[MQTT_TOPIC_SIZE];
-        char topicLogs[MQTT_TOPIC_SIZE];
-        char topicStatus[MQTT_TOPIC_SIZE];
-
         struct MqttMsg
         {
             char topic[MQTT_TOPIC_SIZE];
@@ -117,11 +113,6 @@ namespace mqtt
                 return;
             }
 
-            if (doc["auth"].is<bool>() && doc["auth"])
-            {
-                power::buzzerTriggered = true;
-            }
-
             if (doc["stats"].is<bool>())
             {
                 publishSystemStats();
@@ -145,12 +136,19 @@ namespace mqtt
         return mqtt.connected();
     }
 
-    void publishStatus(const char *payload)
+    void publish(char *topic, char *payload, bool retain)
     {
-        if (isConnected())
+        if (!isConnected())
         {
-            mqtt.publish(topicStatus, payload, true);
+            return;
         }
+
+        MqttMsg msg{};
+        strcpy(msg.topic, topicLogs);
+        strcpy(msg.payload, payload);
+        msg.retain = retain;
+
+        xQueueSend(mqttQueue, &msg, 0);
     }
 
     void TaskMqttCode(void *pvParameters)
@@ -193,9 +191,11 @@ namespace mqtt
 
                 if (connMqtt())
                 {
-                    SystemState newState = power::checkIdle() ? SystemState::IDLE : SystemState::WORKING;
-                    setState(newState);
+                    setState(SystemState::FETCHING);
                 }
+
+                mqtt.loop();
+                continue;
             }
 
             if ((xTaskGetTickCount() - lastLogTick) > logInterval && xQueueReceive(mqttQueue, &lastMsg, 0) == pdTRUE)
