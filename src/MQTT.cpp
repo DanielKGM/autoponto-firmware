@@ -15,8 +15,16 @@ namespace mqtt
         char topicCmd[MQTT_TOPIC_SIZE];
         char topicLogs[MQTT_TOPIC_SIZE];
         char topicStatus[MQTT_TOPIC_SIZE];
+
+        struct MqttMsg
+        {
+            char topic[MQTT_TOPIC_SIZE];
+            char payload[MQTT_PAYLOAD_MAX];
+            bool retain;
+        };
+
         PubSubClient mqtt;
-        QueueHandle_t mqttQueue = xQueueCreate(5, MQTT_PAYLOAD_MAX);
+        QueueHandle_t mqttQueue = xQueueCreate(5, sizeof(MqttMsg));
 
         void buildTopics()
         {
@@ -58,10 +66,12 @@ namespace mqtt
                 return;
             }
 
-            static char msg[MQTT_PAYLOAD_MAX];
-            serializeJson(doc, msg, sizeof(msg));
+            MqttMsg msg{};
+            strcpy(msg.topic, topicLogs);
+            serializeJson(doc, msg.payload, sizeof(msg.payload));
+            msg.retain = false;
 
-            xQueueSend(mqttQueue, msg, 0);
+            xQueueSend(mqttQueue, &msg, 0);
         }
 
         bool connMqtt()
@@ -160,7 +170,7 @@ namespace mqtt
             }
         }
 
-        char lastMsg[MQTT_PAYLOAD_MAX];
+        MqttMsg lastMsg{};
         TickType_t lastLogTick = 0;
         const TickType_t logInterval = pdMS_TO_TICKS(MQTT_LOG_INTERVAL_MS);
 
@@ -188,10 +198,10 @@ namespace mqtt
                 }
             }
 
-            if ((xTaskGetTickCount() - lastLogTick) > logInterval && xQueueReceive(mqttQueue, lastMsg, 0) == pdTRUE)
+            if ((xTaskGetTickCount() - lastLogTick) > logInterval && xQueueReceive(mqttQueue, &lastMsg, 0) == pdTRUE)
             {
                 lastLogTick = xTaskGetTickCount();
-                mqtt.publish(topicLogs, lastMsg, false);
+                mqtt.publish(lastMsg.topic, lastMsg.payload, lastMsg.retain);
             }
 
             mqtt.loop();
