@@ -88,7 +88,7 @@ namespace mqtt
                 topicStatus,
                 1,
                 true,
-                "OFFLINE",
+                "SLEEPING",
                 true);
 
             if (!ok)

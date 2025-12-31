@@ -1,7 +1,7 @@
 #pragma once
 #include "driver/rtc_io.h"
 #include "esp_wifi.h"
-#include "esp32-hal-cpu.h"
+// #include "esp32-hal-cpu.h"
 #include <WiFi.h>
 
 namespace power

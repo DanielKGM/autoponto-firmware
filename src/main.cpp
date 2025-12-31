@@ -46,9 +46,9 @@ void setup()
     xTaskCreatePinnedToCore(
         display::TaskDisplayCode,
         "TaskDisplay",
-        8192,
+        16384,
         nullptr,
-        1,
+        3,
         &TaskDisplay,
         APP_CPU_NUM);
 
@@ -60,9 +60,9 @@ void setup()
     xTaskCreatePinnedToCore(
         network::TaskNetworkCode,
         "TaskNetwork",
-        8192,
+        16384,
         nullptr,
-        1,
+        2,
         &TaskNetwork,
         PRO_CPU_NUM);
 
@@ -108,7 +108,6 @@ void loop()
         if (checkState(SystemState::WORKING))
         {
             enterIdle();
-            setState(SystemState::IDLE);
         }
         else
         {
@@ -121,7 +120,7 @@ void loop()
         triggerSleepEvent();
     }
 
-    if (checkSleepEvent(loopDelay) && checkTaskCount() == 0)
+    if (checkSleepEvent(loopDelay) && checkTaskCount() == 0 && checkState(SystemState::SLEEPING))
     {
         sleep();
     }

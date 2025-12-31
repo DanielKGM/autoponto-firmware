@@ -22,7 +22,7 @@ namespace network
 
             FrameBuffer frame;
 
-            if (xQueueReceive(frameQueue, &frame, pdMS_TO_TICKS(1000)) != pdTRUE)
+            if (xQueueReceive(frameQueue, &frame, 1000) != pdTRUE)
             {
                 return false;
             }
@@ -33,15 +33,25 @@ namespace network
 
             http.addHeader("Content-Type", "image/jpeg");
             http.addHeader("X-Device-Id", deviceId);
+            http.addHeader("Connection", "close");
             http.addHeader("X-Auth", REST_PASS);
 
             int resp = http.POST(frame.data, frame.len);
+
+            if (resp != HTTP_CODE_OK)
+            {
+                vTaskDelay(pdMS_TO_TICKS(200));
+                resp = http.POST(frame.data, frame.len);
+            }
+
             http.end();
             free(frame.data);
 
             if (resp != HTTP_CODE_OK)
             {
-                sendDisplayMessage("Erro ao enviar captura!", 3000, &ICON_SAD);
+                char msg[32];
+                snprintf(msg, sizeof(msg), "HTTP erro: %d", resp);
+                sendDisplayMessage(msg, 3000, &ICON_SAD);
             }
 
             return resp == HTTP_CODE_OK;
@@ -68,7 +78,15 @@ namespace network
 
             if (resp != HTTP_CODE_OK)
             {
-                sendDisplayMessage("Servidor indisponivel!", 3000, &ICON_SAD);
+                vTaskDelay(pdMS_TO_TICKS(200));
+                resp = http.GET();
+            }
+
+            if (resp != HTTP_CODE_OK)
+            {
+                char msg[32];
+                snprintf(msg, sizeof(msg), "HTTP erro: %d", resp);
+                sendDisplayMessage(msg, 3000, &ICON_SAD);
                 http.end();
                 return false;
             }
@@ -78,7 +96,7 @@ namespace network
 
             if (error)
             {
-                sendDisplayMessage("Erro ao analisar informacoes!", 3000, &ICON_SAD);
+                sendDisplayMessage("Erro em analisar as informações!", 3000, &ICON_SAD);
                 http.end();
                 return false;
             }
@@ -200,6 +218,7 @@ namespace network
             {
                 if (now - lastReqTick > waitInterval)
                 {
+                    lastReqTick = now;
                     setState(SystemState::WORKING);
                 }
             }
@@ -214,9 +233,10 @@ namespace network
                     xTaskNotifyGive(TaskDisplay);
                 }
 
-                if (sendFrame())
+                setState(SystemState::WAITING_SERVER);
+                if (!sendFrame())
                 {
-                    setState(SystemState::WAITING_SERVER);
+                    setState(SystemState::WORKING);
                 }
             }
         }

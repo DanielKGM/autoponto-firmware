@@ -50,9 +50,10 @@ namespace power
         }
 
         digitalWrite(DISPLAY_ENABLE_PIN, LOW);
-        setCpuFrequencyMhz(160);
+        // setCpuFrequencyMhz(160);
         esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
         idleFlag = true;
+        setState(SystemState::IDLE);
     }
 
     void exitIdle()
@@ -63,7 +64,7 @@ namespace power
         }
 
         idleFlag = false;
-        setCpuFrequencyMhz(240);
+        // setCpuFrequencyMhz(240);
         digitalWrite(DISPLAY_ENABLE_PIN, HIGH);
         esp_wifi_set_ps(WIFI_PS_NONE);
 

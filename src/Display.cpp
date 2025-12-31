@@ -7,7 +7,7 @@
 
 namespace display
 {
-    QueueHandle_t frameQueue = xQueueCreate(1, sizeof(FrameBuffer));
+    QueueHandle_t frameQueue = xQueueCreate(2, sizeof(FrameBuffer));
 
     const Icon ICON_WIFI = {wifi_icon, 38, 38, TFT_BLACK};
     const Icon ICON_SAD = {sad_icon, 38, 38, TFT_RED};
@@ -32,7 +32,6 @@ namespace display
         int drawMCUs(JPEGDRAW *pDraw)
         {
             tft.pushImage(pDraw->x, pDraw->y, pDraw->iWidth, pDraw->iHeight, pDraw->pPixels);
-
             return 1;
         }
 
@@ -166,15 +165,29 @@ namespace display
                 return false;
             }
 
-            // Buffer PSRAM
-            uint8_t *fbCopy = captureFrame ? (uint8_t *)ps_malloc(fb->len) : nullptr;
+            bool converted = false;
+            size_t len = fb->len;
 
-            if (fbCopy)
+            if (decoder.openRAM(fb->buf, len, drawMCUs))
             {
-                memcpy(fbCopy, fb->buf, fb->len);
+                decoder.setPixelType(RGB565_BIG_ENDIAN);
+                converted = decoder.decode(0, 0, 0);
+                decoder.close();
+            }
 
+            uint8_t *fbCopy = captureFrame ? (uint8_t *)ps_malloc(len) : nullptr;
+
+            if (captureFrame)
+            {
+                memcpy(fbCopy, fb->buf, len);
+            }
+
+            esp_camera_fb_return(fb);
+
+            if (captureFrame)
+            {
                 FrameBuffer frame;
-                frame.len = fb->len;
+                frame.len = len;
                 frame.data = fbCopy;
 
                 FrameBuffer old;
@@ -183,20 +196,8 @@ namespace display
                     free(old.data);
                 }
 
-                xQueueOverwrite(frameQueue, &frame);
+                xQueueSend(frameQueue, &frame, 0);
             }
-
-            // Display
-            bool converted = false;
-
-            if (decoder.openRAM(fb->buf, fb->len, drawMCUs))
-            {
-                decoder.setPixelType(RGB565_BIG_ENDIAN);
-                converted = decoder.decode(0, 0, 0);
-                decoder.close();
-            }
-
-            esp_camera_fb_return(fb);
 
             return converted;
         }
@@ -256,6 +257,7 @@ namespace display
             //
             if (power::checkIdle())
             {
+                xQueueReset(messageQueue);
                 msg = DisplayMessage{};
                 tft.fillScreen(TFT_BLACK);
                 currentDelay = idleDelay;
@@ -273,7 +275,7 @@ namespace display
                 showText(msg.text, msg.icon);
                 currentDelay = normalDelay;
             }
-            else if (checkState(SystemState::WORKING))
+            else if (checkState(SystemState::WORKING) || checkState(SystemState::WAITING_SERVER))
             {
                 showCamFrame(ulTaskNotifyTake(pdTRUE, 0) > 0);
                 currentDelay = videoDelay;
@@ -283,8 +285,6 @@ namespace display
             {
                 break;
             }
-
-            vTaskDelay(currentDelay);
         }
 
         changeTaskCount(-1);
