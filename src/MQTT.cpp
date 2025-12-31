@@ -3,6 +3,7 @@
 #include "Globals.h"
 #include "Network.h"
 #include "Display.h"
+#include "Power.h"
 
 namespace mqtt
 {
@@ -88,7 +89,7 @@ namespace mqtt
                 topicStatus,
                 1,
                 true,
-                "SLEEPING",
+                "OFFLINE",
                 true);
 
             if (!ok)
@@ -113,6 +114,12 @@ namespace mqtt
             if (doc["stats"].is<bool>())
             {
                 publishSystemStats();
+            }
+
+            if (doc["auth"].is<bool>())
+            {
+                display::sendDisplayMessage(doc["student"] | "", 5000, &display::ICON_HAPPY);
+                power::buzzerTriggered = true;
             }
 
             if (doc["fetch"].is<bool>())

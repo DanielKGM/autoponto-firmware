@@ -50,7 +50,7 @@ namespace power
         }
 
         digitalWrite(DISPLAY_ENABLE_PIN, LOW);
-        // setCpuFrequencyMhz(160);
+        setCpuFrequencyMhz(160);
         esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
         idleFlag = true;
         setState(SystemState::IDLE);
@@ -64,7 +64,7 @@ namespace power
         }
 
         idleFlag = false;
-        // setCpuFrequencyMhz(240);
+        setCpuFrequencyMhz(240);
         digitalWrite(DISPLAY_ENABLE_PIN, HIGH);
         esp_wifi_set_ps(WIFI_PS_NONE);
 
@@ -80,7 +80,7 @@ namespace power
             return;
         }
 
-        setState(SystemState::WORKING);
+        setState(SystemState::FETCHING);
     }
 
     void configPins()
@@ -104,7 +104,7 @@ namespace power
     {
         setState(SystemState::SLEEPING);
         xEventGroupSetBits(systemEvents, EVT_SLEEP);
-        vTaskDelay(pdMS_TO_TICKS(100));
+        vTaskDelay(pdMS_TO_TICKS(500));
     }
 
     __attribute__((noreturn)) void sleep()

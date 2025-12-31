@@ -249,18 +249,21 @@ namespace display
         const TickType_t normalDelay = pdMS_TO_TICKS(100);
 
         TickType_t currentDelay = normalDelay;
+        // only trigger idle actions once
+        bool idleTrigger = true;
 
         while (true)
         {
             TickType_t now = xTaskGetTickCount();
 
             //
-            if (power::checkIdle())
+            if (power::checkIdle() && idleTrigger)
             {
                 xQueueReset(messageQueue);
                 msg = DisplayMessage{};
                 tft.fillScreen(TFT_BLACK);
                 currentDelay = idleDelay;
+                idleTrigger = false;
             }
             else if (overlayUntil > now && msg.duration > 0)
             {
@@ -277,6 +280,11 @@ namespace display
             }
             else if (checkState(SystemState::WORKING) || checkState(SystemState::WAITING_SERVER))
             {
+                if (!idleTrigger)
+                {
+                    idleTrigger = true;
+                }
+
                 showCamFrame(ulTaskNotifyTake(pdTRUE, 0) > 0);
                 currentDelay = videoDelay;
             }

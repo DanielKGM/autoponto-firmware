@@ -49,9 +49,7 @@ namespace network
 
             if (resp != HTTP_CODE_OK)
             {
-                char msg[32];
-                snprintf(msg, sizeof(msg), "HTTP erro: %d", resp);
-                sendDisplayMessage(msg, 3000, &ICON_SAD);
+                sendDisplayMessage("Servidor indisponivel para envios!", 3000, &ICON_SAD);
             }
 
             return resp == HTTP_CODE_OK;
@@ -84,9 +82,7 @@ namespace network
 
             if (resp != HTTP_CODE_OK)
             {
-                char msg[32];
-                snprintf(msg, sizeof(msg), "HTTP erro: %d", resp);
-                sendDisplayMessage(msg, 3000, &ICON_SAD);
+                sendDisplayMessage("Servidor indisponivel para sincronizacao!", 3000, &ICON_SAD);
                 http.end();
                 return false;
             }
@@ -105,8 +101,8 @@ namespace network
             context.msForNext = pdMS_TO_TICKS(doc["msForNext"]) | 0;
             context.msRemaining = pdMS_TO_TICKS(doc["msRemaining"]) | 0;
             context.fetchTime = xTaskGetTickCount();
-
             http.end();
+            mqtt::publish(mqtt::topicLogs, "{\"synced\":true}", true);
             return true;
         }
 
@@ -206,7 +202,6 @@ namespace network
                 if (context.chair[0] != '\0' &&
                     (context.msForNext > 0 || context.msRemaining > 0))
                 {
-                    mqtt::publish(mqtt::topicLogs, "{\"synced\":true}", true);
                     setState(power::checkIdle() ? SystemState::IDLE : SystemState::WORKING);
                 }
                 else
@@ -219,7 +214,7 @@ namespace network
                 if (now - lastReqTick > waitInterval)
                 {
                     lastReqTick = now;
-                    setState(SystemState::WORKING);
+                    setState(power::checkIdle() ? SystemState::IDLE : SystemState::WORKING);
                 }
             }
             else if (checkState(SystemState::WORKING) &&
@@ -233,10 +228,9 @@ namespace network
                     xTaskNotifyGive(TaskDisplay);
                 }
 
-                setState(SystemState::WAITING_SERVER);
                 if (!sendFrame())
                 {
-                    setState(SystemState::WORKING);
+                    setState(SystemState::WAITING_SERVER);
                 }
             }
         }
