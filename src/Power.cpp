@@ -90,6 +90,7 @@ namespace power
         pinMode(PWDN_GPIO_NUM, OUTPUT);
         pinMode(POSITIVE_FB_PIN, OUTPUT);
         digitalWrite(DISPLAY_ENABLE_PIN, HIGH);
+
         attachInterrupt(digitalPinToInterrupt(PIR_PIN), handlePIRInterrupt, RISING);
     }
 

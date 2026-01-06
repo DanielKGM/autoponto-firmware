@@ -52,6 +52,7 @@ namespace network
                 sendDisplayMessage("Servidor indisponivel para envios!", 3000, &ICON_SAD);
             }
 
+            setState(SystemState::WAITING_SERVER);
             return resp == HTTP_CODE_OK;
         }
 
@@ -62,6 +63,12 @@ namespace network
             if (!isConnected())
             {
                 return false;
+            }
+
+            if (context.chair[0] != '\0' &&
+                (context.msForNext > 0 || context.msRemaining > 0))
+            {
+                return true;
             }
 
             HTTPClient http;
@@ -102,7 +109,9 @@ namespace network
             context.msRemaining = pdMS_TO_TICKS(doc["msRemaining"]) | 0;
             context.fetchTime = xTaskGetTickCount();
             http.end();
+
             mqtt::publish(mqtt::topicLogs, "{\"synced\":true}", true);
+
             return true;
         }
 
@@ -147,6 +156,7 @@ namespace network
 
             return connWifi();
         }
+
     } //
 
     int8_t getRSSI()
@@ -171,8 +181,8 @@ namespace network
         }
 
         const TickType_t delay = pdMS_TO_TICKS(100);
-        const TickType_t reqInterval = pdMS_TO_TICKS(REST_POST_INTERVAL_MS);
         const TickType_t waitInterval = pdMS_TO_TICKS(RESPONSE_WAIT_TIMEOUT_MS);
+        const TickType_t reqInterval = pdMS_TO_TICKS(REST_POST_INTERVAL_MS);
 
         TickType_t lastReqTick = 0;
 
@@ -194,44 +204,28 @@ namespace network
                 {
                     setState(SystemState::NET_ON);
                 }
+
                 continue;
             }
 
-            if (checkState(SystemState::FETCHING))
+            const TickType_t lastRequestInterval = now - lastReqTick;
+            bool waitTimeOut = lastRequestInterval > waitInterval;
+            bool shouldSendFrame = lastRequestInterval > reqInterval && context.msRemaining;
+
+            if (checkState(SystemState::FETCHING) && getContext())
             {
-                if (context.chair[0] != '\0' &&
-                    (context.msForNext > 0 || context.msRemaining > 0))
-                {
-                    setState(power::checkIdle() ? SystemState::IDLE : SystemState::WORKING);
-                }
-                else
-                {
-                    getContext();
-                }
+                setState(power::checkIdle() ? SystemState::IDLE : SystemState::WORKING);
             }
-            else if (checkState(SystemState::WAITING_SERVER))
-            {
-                if (now - lastReqTick > waitInterval)
-                {
-                    lastReqTick = now;
-                    setState(power::checkIdle() ? SystemState::IDLE : SystemState::WORKING);
-                }
-            }
-            else if (checkState(SystemState::WORKING) &&
-                     now - lastReqTick > reqInterval &&
-                     context.msRemaining)
+            else if (checkState(SystemState::WAITING_SERVER) && waitTimeOut)
             {
                 lastReqTick = now;
-
-                if (TaskDisplay)
-                {
-                    xTaskNotifyGive(TaskDisplay);
-                }
-
-                if (!sendFrame())
-                {
-                    setState(SystemState::WAITING_SERVER);
-                }
+                setState(power::checkIdle() ? SystemState::IDLE : SystemState::WORKING);
+            }
+            else if (checkState(SystemState::WORKING) && shouldSendFrame)
+            {
+                lastReqTick = now;
+                xTaskNotifyGive(TaskDisplay);
+                sendFrame();
             }
         }
 

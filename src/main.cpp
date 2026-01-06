@@ -37,11 +37,11 @@ void setup()
     setState(SystemState::BOOTING);
 
     loadID();
+    display::configTFT();
+    display::configSprite();
     power::configPins();
     power::configSleep();
     camera::configCamera();
-    display::configTFT();
-    display::configSprite();
 
     xTaskCreatePinnedToCore(
         display::TaskDisplayCode,
