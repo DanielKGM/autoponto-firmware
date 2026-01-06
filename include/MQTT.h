@@ -12,6 +12,6 @@ namespace mqtt
     extern char topicStatus[MQTT_TOPIC_SIZE];
 
     bool isConnected();
-    void publish(char *topic, const char *payload, bool retain = false);
+    void publish(const char *topic, const char *payload, bool retain = false);
     void TaskMqttCode(void *pvParameters);
 }

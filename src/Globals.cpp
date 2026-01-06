@@ -41,6 +41,12 @@ void setState(SystemState newState)
     systemState = newState;
     portEXIT_CRITICAL(&systemStateMux);
 
+    // only publish meaningful states
+    if (newState < SystemState::IDLE)
+    {
+        return;
+    }
+
     mqtt::publish(mqtt::topicStatus, stateStr(newState), true);
 }
 

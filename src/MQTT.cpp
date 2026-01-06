@@ -21,7 +21,7 @@ namespace mqtt
         };
 
         PubSubClient mqtt;
-        QueueHandle_t mqttQueue = xQueueCreate(5, sizeof(MqttMsg));
+        QueueHandle_t mqttQueue = xQueueCreate(10, sizeof(MqttMsg));
 
         void buildTopics()
         {
@@ -145,7 +145,7 @@ namespace mqtt
         return mqtt.connected();
     }
 
-    void publish(char *topic, const char *payload, bool retain)
+    void publish(const char *topic, const char *payload, bool retain)
     {
         if (!isConnected())
         {
