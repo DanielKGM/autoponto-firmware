@@ -11,7 +11,7 @@ namespace display
 
     const Icon ICON_WIFI = {wifi_icon, 38, 38, TFT_BLACK};
     const Icon ICON_SAD = {sad_icon, 38, 38, TFT_RED};
-    const Icon ICON_HAPPY = {happy_icon, 38, 38, TFT_GREEN};
+    const Icon ICON_HAPPY = {happy_icon, 38, 38, TFT_DARKGREEN};
     const Icon ICON_SERVER = {server_icon, 38, 38, TFT_BLACK};
 
     namespace
@@ -206,8 +206,8 @@ namespace display
     void configTFT()
     {
         tft.init();
-        tft.setPivot(DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2);
         tft.fillScreen(TFT_BLACK);
+        tft.setPivot(DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2);
         tft.setRotation(1);
     }
 
@@ -237,9 +237,6 @@ namespace display
     void TaskDisplayCode(void *pvParameters)
     {
         changeTaskCount(1);
-
-        configTFT();
-        configSprite();
 
         DisplayMessage msg{};
         TickType_t overlayUntil = 0;
