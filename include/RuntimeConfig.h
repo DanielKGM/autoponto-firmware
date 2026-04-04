@@ -28,7 +28,8 @@ namespace configs
     bool loadConfigs();
     bool saveConfigs();
 
-    void setDefaults();
+    void loadDefaults();
+    bool ensureLoaded();
 
     bool importJson(const JsonVariantConst &json);
     bool exportJson(JsonDocument &doc);

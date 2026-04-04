@@ -9,7 +9,7 @@ namespace configs
 {
     namespace
     {
-        constexpr const char *NS = "config";
+        constexpr const char *NS = "configs";
 
         void copyStr(char *dst, size_t dstSize, const char *src)
         {
@@ -24,12 +24,27 @@ namespace configs
                 copyStr(dst, dstSize, value.c_str());
             }
         }
+
+        bool hasStoredConfig()
+        {
+            Preferences prefs;
+            if (!prefs.begin(NS, true))
+            {
+                return false;
+            }
+
+            bool exists =
+                prefs.isKey("wifi_ssid") ||
+                prefs.isKey("rest_url") ||
+                prefs.isKey("mqtt_url");
+
+            prefs.end();
+            return exists;
+        }
     }
 
-    void setDefaults()
+    void loadDefaults()
     {
-        // Config.h -> runtimeConfig -> preferences
-
         copyStr(runtimeConfig.wifiSsid, sizeof(runtimeConfig.wifiSsid), WIFI_SSID);
         copyStr(runtimeConfig.wifiPass, sizeof(runtimeConfig.wifiPass), WIFI_PASS);
 
@@ -42,8 +57,18 @@ namespace configs
         runtimeConfig.mqttPort = MQTT_PORT;
         copyStr(runtimeConfig.mqttUser, sizeof(runtimeConfig.mqttUser), MQTT_USER);
         copyStr(runtimeConfig.mqttPass, sizeof(runtimeConfig.mqttPass), MQTT_PASS);
+    }
 
-        saveConfigs();
+    bool ensureLoaded()
+    {
+        loadDefaults();
+
+        if (!hasStoredConfig())
+        {
+            return saveConfigs();
+        }
+
+        return loadConfigs();
     }
 
     bool loadConfigs()
