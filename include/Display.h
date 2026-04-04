@@ -24,6 +24,7 @@ namespace display
     extern const Icon ICON_SAD;
     extern const Icon ICON_HAPPY;
     extern const Icon ICON_SERVER;
+    extern const Icon ICON_BLUETOOTH;
 
     bool sendDisplayMessage(const char *text, unsigned long durationMs = 100, const Icon *icon = nullptr);
     void TaskDisplayCode(void *pvParameters);

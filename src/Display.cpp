@@ -13,6 +13,7 @@ namespace display
     const Icon ICON_SAD = {sad_icon, 38, 38, TFT_RED};
     const Icon ICON_HAPPY = {happy_icon, 38, 38, TFT_DARKGREEN};
     const Icon ICON_SERVER = {server_icon, 38, 38, TFT_BLACK};
+    const Icon ICON_BLUETOOTH = {bluetooth_icon, 38, 38, TFT_BLUE};
 
     namespace
     {

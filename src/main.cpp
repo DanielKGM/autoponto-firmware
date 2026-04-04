@@ -5,6 +5,8 @@
 #include "Display.h"
 #include "Network.h"
 #include "MQTT.h"
+#include "Bluetooth.h"
+#include "RuntimeConfig.h"
 
 const TickType_t ticksToSleep = pdMS_TO_TICKS(SLEEP_TIMEOUT_MS);
 const TickType_t ticksToIdle = pdMS_TO_TICKS(IDLE_TIMEOUT_MS);
@@ -37,11 +39,13 @@ void setup()
     setState(SystemState::BOOTING);
 
     loadID();
+    configs::ensureLoaded();
+    power::configPins();
+
+    const bool enterConfigMode = bluetooth::shouldEnterConfigMode();
+
     display::configTFT();
     display::configSprite();
-    power::configPins();
-    power::configSleep();
-    camera::configCamera();
 
     xTaskCreatePinnedToCore(
         display::TaskDisplayCode,
@@ -51,6 +55,17 @@ void setup()
         3,
         &TaskDisplay,
         APP_CPU_NUM);
+
+    if (enterConfigMode)
+    {
+        bluetooth::runConfigMode();
+        vTaskDelay(pdMS_TO_TICKS(500));
+        ESP.restart();
+        return;
+    }
+
+    power::configSleep();
+    camera::configCamera();
 
     if (!camera::startCamera())
     {
