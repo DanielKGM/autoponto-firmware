@@ -70,14 +70,6 @@ const char *stateStr(SystemState state)
 {
     switch (state)
     {
-    case SystemState::BOOTING:
-        return "BOOTING";
-    case SystemState::NET_OFF:
-        return "NET_OFF";
-    case SystemState::NET_ON:
-        return "NET_ON";
-    case SystemState::MQTT_OFF:
-        return "MQTT_OFF";
     case SystemState::IDLE:
         return "IDLE";
     case SystemState::WORKING:
