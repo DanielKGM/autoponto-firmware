@@ -154,6 +154,7 @@ namespace network
         bool configWifi()
         {
             WiFi.mode(WIFI_STA);
+            WiFi.setHostname(deviceId);
 
             return connWifi();
         }
