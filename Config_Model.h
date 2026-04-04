@@ -19,7 +19,6 @@
 #define WIFI_TIMEOUT_MS 10000
 #define WIFI_SSID ""
 #define WIFI_PASS ""
-#define HOST_NAME "autopontoesp"
 
 //      Servidor REST
 #define REST_URL ""
@@ -30,13 +29,10 @@
 #define REST_FETCH_PATH "/fetch/"
 
 //      Servidor MQTT
-#define MQTT_TIMEOUT_MS 10000
-#define MQTT_LOG_INTERVAL_MS 5000
 #define MQTT_URL ""
 #define MQTT_PORT 0
 #define MQTT_USER ""
 #define MQTT_PASS ""
-#define MQTT_LOG_DEFAULT true
 
 //      Servidor REST + MQTT
 #define RESPONSE_WAIT_TIMEOUT_MS 5000 // Tempo de espera, por MQTT, de uma resposta após POST REST

@@ -178,8 +178,6 @@ namespace mqtt
         }
 
         MqttMsg lastMsg{};
-        TickType_t lastLogTick = 0;
-        const TickType_t logInterval = pdMS_TO_TICKS(MQTT_LOG_INTERVAL_MS);
 
         while (true)
         {
@@ -208,9 +206,8 @@ namespace mqtt
                 continue;
             }
 
-            if ((xTaskGetTickCount() - lastLogTick) > logInterval && xQueueReceive(mqttQueue, &lastMsg, 0) == pdTRUE)
+            if (xQueueReceive(mqttQueue, &lastMsg, 0) == pdTRUE)
             {
-                lastLogTick = xTaskGetTickCount();
                 mqtt.publish(lastMsg.topic, lastMsg.payload, lastMsg.retain);
             }
 
