@@ -29,7 +29,7 @@ namespace network
 
             HTTPClient http;
             http.setTimeout(REST_TIMEOUT_MS);
-            http.begin(REST_POST_URL);
+            http.begin(String(REST_URL) + String(REST_POST_PATH));
 
             http.addHeader("Content-Type", "image/jpeg");
             http.addHeader("X-Device-Id", deviceId);
@@ -73,7 +73,7 @@ namespace network
 
             HTTPClient http;
             http.setTimeout(REST_TIMEOUT_MS);
-            http.begin(String(REST_GET_URL) + String(deviceId));
+            http.begin(String(REST_URL) + String(REST_FETCH_PATH) + String(deviceId));
             http.addHeader("X-Device-Id", deviceId);
             http.addHeader("X-Auth", REST_PASS);
 

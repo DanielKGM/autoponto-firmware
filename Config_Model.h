@@ -3,6 +3,7 @@
 //  Sensor de presença (PIR)
 #define PIR_PIN 33
 #define SLEEP_TIMEOUT_MS 20000 // Tempo sem detecção PIR para entrar em deep sleep (20 segundos)
+#define IDLE_TIMEOUT_MS 10000  // Tempo sem atividade para entrar em modo de espera (10 segundos)
 
 //  Configurações do display TFT
 #define DISPLAY_ENABLE_PIN 1   // Pino para ativar/desativar transistor associado ao display
@@ -18,19 +19,21 @@
 #define WIFI_TIMEOUT_MS 10000
 #define WIFI_SSID ""
 #define WIFI_PASS ""
-#define HOST_NAME ""
+#define HOST_NAME "autopontoesp"
 
 //      Servidor REST
 #define REST_URL ""
 #define REST_PASS ""
 #define REST_TIMEOUT_MS 8000
 #define REST_POST_INTERVAL_MS 3000 // Intervalo entre envios de frames em milissegundos
+#define REST_POST_PATH "/frame"
+#define REST_FETCH_PATH "/fetch/"
 
 //      Servidor MQTT
 #define MQTT_TIMEOUT_MS 10000
 #define MQTT_LOG_INTERVAL_MS 5000
 #define MQTT_URL ""
-#define MQTT_PORT 0000
+#define MQTT_PORT 0
 #define MQTT_USER ""
 #define MQTT_PASS ""
 #define MQTT_LOG_DEFAULT true
