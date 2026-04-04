@@ -1,9 +1,9 @@
 #include "MQTT.h"
-#include "Config.h"
 #include "Globals.h"
 #include "Network.h"
 #include "Display.h"
 #include "Power.h"
+#include "RuntimeConfig.h"
 
 namespace mqtt
 {
@@ -84,8 +84,8 @@ namespace mqtt
 
             bool ok = mqtt.connect(
                 deviceId,
-                MQTT_USER,
-                MQTT_PASS,
+                runtimeConfig.mqttUser,
+                runtimeConfig.mqttPass,
                 topicStatus,
                 1,
                 true,
@@ -133,7 +133,7 @@ namespace mqtt
             buildTopics();
 
             mqtt.setClient(network::wifiClient);
-            mqtt.setServer(MQTT_URL, MQTT_PORT);
+            mqtt.setServer(runtimeConfig.mqttUrl, runtimeConfig.mqttPort);
             mqtt.setCallback(mqttCallback);
 
             return true;
