@@ -2,39 +2,8 @@
 
 ## Finite State Machine (FSM) do ESP32CAM
 
-```mermaid
----
-config:
-  layout: elk
-  theme: base
-  look: neo
----
-stateDiagram
-  direction TB
-  [*] --> boot
-  boot --> net_off:Sistema configurado / "Task" de rede criada
-  net_off --> mqtt_off:Conecta à rede Wi-Fi
-  mqtt_off --> net_off:Wi-Fi desconecta
-  mqtt_off --> fetching:Conecta ao "Broker"
-  fetching --> working:Atualiza Contexto MQTT / A partir do WORKING
-  fetching --> idle:Atualiza Contexto MQTT / A partir do IDLE
-  working --> fetching:Precisa atualizar contexto
-  idle --> fetching:Precisa atualizar contexto
-  working --> waiting:Faz requisição HTTP
-  waiting --> working:Resposta/TIMEOUT REST / A partir do WORKING
-  waiting --> idle:Resposta/TIMEOUT REST / A partir do IDLE
-  working --> idle:Não detecta usuário / Sensor PIR
-  idle --> working:Totalmente conectado / Detecta usuário
-  idle --> sleep:Muito tempo sem detectar usuário / Sensor PIR
-  sleep --> boot:Dormindo / Detecta usuário
-  boot --> configuring:GPIO4 em nível alto
-  configuring --> boot:Comando BLE de EXIT ou TIMEOUT
-  working --> mqtt_off:"Broker" desconecta
-  idle --> mqtt_off:"Broker" desconecta
-  waiting --> mqtt_off:"Broker" desconecta
-  working --> net_off:Wi-Fi desconecta
-  idle --> net_off:Wi-Fi desconecta
-  waiting --> net_off:Wi-Fi desconecta
-  net_off:net off
-  mqtt_off:mqtt off
-```
+![Diagrama de Estados do ESP32CAM](docs/FSM_DIAGRAM.png)
+
+<div align="right">
+  <a href="https://mermaid.ai/play#pako:eNqVVM1u00AQfpWRj0hWL5x8QGqatFg0TUiMioRRtbUn6Sr2Trq7plDEu4B64MRT-MW6s45dJ6UhXLJZ7_cz_nbG34OMcgyiIAzDVGWkFnIZpQqgEN-oshFgseKtvcESI7gWBv0p0SoChZQqTzRWWBxKsdSi5PNcasysJAXJgPefXn2GMHwD10SW97z6BwrtFS0W0Vwai6WApoJKi5zgCNIgEWaVBpAjaHQ_mZYiF6ywIXqR8tY2KieknK2A-mcDv5ThqWR0i9jy9KdO2mQN7RlwgTa7kWrZ6QpyJQ00rVCnAcNbhIffkV4x-thWopD3AhzN4ldLMH6fJO51jmEttJUa3MtdTmbv4ouzZyIyL_AwhXh4PmL6xna74qnLXxpX8UZJc7Jeiils8j_4vsWdkJYZp-LehXxbSSPr3_UDwdskmXpwA9iKZIZmTa5JjpJ4PJp8SGA2mu9JpC_hAzmE_7c8PPmCq8vR-iusTFX_0pK7a47KkIZpPNvKpK05ISuKEl0KsGkQ35PDHaEtrikQ19G4ku7KXD-vCQyWrbd-2dzzugmJhqRLqV6066annRYu92waT16Dc1P1ny9YgCiau-thngxOqBSsPzgf8WyNPsYJUAWbdHdT7Obrqfl3xqYL4N_Q_t0egO6VsW9uuwL2gfrW-3DtmVvBrf3vQsR_-GHw4xEADs2a">Visualizar no Mermaid Live Editor</a>
+</div>
