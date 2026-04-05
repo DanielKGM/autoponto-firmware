@@ -66,8 +66,8 @@ namespace network
                 return false;
             }
 
-            if (context.chair[0] != '\0' &&
-                (context.msForNext > 0 || context.msRemaining > 0))
+            if (context._class[0] != '\0' &&
+                (context.ticksForNext > 0 || context.ticksRemaining > 0))
             {
                 return true;
             }
@@ -105,10 +105,10 @@ namespace network
                 return false;
             }
 
-            strlcpy(context.chair, doc["chair"] | "", sizeof(context.chair));
-            context.msForNext = pdMS_TO_TICKS(doc["msForNext"]) | 0;
-            context.msRemaining = pdMS_TO_TICKS(doc["msRemaining"]) | 0;
-            context.fetchTime = xTaskGetTickCount();
+            strlcpy(context._class, doc["class"] | "", sizeof(context._class));
+            context.ticksForNext = pdMS_TO_TICKS(doc["msForNext"]) | 0;
+            context.ticksRemaining = pdMS_TO_TICKS(doc["msRemaining"]) | 0;
+            context.fetchTick = xTaskGetTickCount();
             http.end();
 
             mqtt::publish(mqtt::topicLogs, "{\"synced\":true}", true);
@@ -212,7 +212,7 @@ namespace network
 
             const TickType_t lastRequestInterval = now - lastReqTick;
             bool waitTimeOut = lastRequestInterval > waitInterval;
-            bool shouldSendFrame = lastRequestInterval > reqInterval && context.msRemaining;
+            bool shouldSendFrame = lastRequestInterval > reqInterval && context.ticksRemaining;
 
             if (checkState(SystemState::FETCHING) && getContext())
             {

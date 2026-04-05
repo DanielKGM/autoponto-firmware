@@ -16,10 +16,10 @@ AttendanceContext context = AttendanceContext{};
 
 void clearContext()
 {
-    context.fetchTime = 0;
-    context.chair[0] = '\0';
-    context.msForNext = 0;
-    context.msRemaining = 0;
+    context.fetchTick = 0;
+    context._class[0] = '\0';
+    context.ticksForNext = 0;
+    context.ticksRemaining = 0;
     setState(SystemState::FETCHING);
 }
 

@@ -3,7 +3,7 @@
 #include <Preferences.h>
 #define EVT_SLEEP (1 << 0)
 
-#define CHAIR_STR_LENGTH 256
+#define CLASS_STR_LENGTH 256
 
 enum class SystemState
 {
@@ -20,10 +20,10 @@ enum class SystemState
 
 struct AttendanceContext
 {
-    char chair[CHAIR_STR_LENGTH];
-    TickType_t msForNext;
-    TickType_t msRemaining;
-    TickType_t fetchTime;
+    char _class[CLASS_STR_LENGTH];
+    TickType_t ticksForNext;
+    TickType_t ticksRemaining;
+    TickType_t fetchTick;
 };
 
 extern AttendanceContext context;

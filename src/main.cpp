@@ -6,6 +6,7 @@
 #include "Network.h"
 #include "MQTT.h"
 #include "Bluetooth.h"
+
 #include "RuntimeConfig.h"
 
 const TickType_t ticksToSleep = pdMS_TO_TICKS(SLEEP_TIMEOUT_MS);
@@ -96,11 +97,11 @@ void loop()
     using namespace power;
     TickType_t now = xTaskGetTickCount();
 
-    if (context.msRemaining > 0 && (now - context.fetchTime > context.msRemaining))
+    if (context.ticksRemaining > 0 && (now - context.fetchTick > context.ticksRemaining))
     {
         clearContext();
     }
-    else if (context.msForNext > 0 && (now - context.fetchTime > context.msForNext))
+    else if (context.ticksForNext > 0 && (now - context.fetchTick > context.ticksForNext))
     {
         clearContext();
     }
@@ -120,7 +121,7 @@ void loop()
 
     if (!checkIdle() && (now - lastSensorTick) > ticksToIdle)
     {
-        if (checkState(SystemState::WORKING))
+        if (checkState(SystemState::WORKING) || checkState(SystemState::NET_OFF) || checkState(SystemState::MQTT_OFF))
         {
             enterIdle();
         }
