@@ -10,7 +10,6 @@ enum class SystemState
     BOOTING,
     CONFIGURING,
     NET_OFF,
-    NET_ON,
     MQTT_OFF,
     IDLE,
     WORKING,

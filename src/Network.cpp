@@ -179,7 +179,7 @@ namespace network
 
         if (configWifi())
         {
-            setState(SystemState::NET_ON);
+            setState(SystemState::MQTT_OFF);
         }
 
         const TickType_t delay = pdMS_TO_TICKS(100);
@@ -204,7 +204,7 @@ namespace network
 
                 if (connWifi())
                 {
-                    setState(SystemState::NET_ON);
+                    setState(SystemState::MQTT_OFF);
                 }
 
                 continue;
