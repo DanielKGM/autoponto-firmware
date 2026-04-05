@@ -1,0 +1,34 @@
+---
+config:
+  layout: elk
+  theme: redux
+  look: neo
+---
+stateDiagram
+  direction BT
+  [*] --> boot
+  boot --> net_off:System configured / Network "Task" created
+  net_off --> mqtt_off:Connects to Wi-Fi network
+  mqtt_off --> net_off:Wi-Fi disconnected
+  mqtt_off --> fetching:Connects to "Broker"
+  fetching --> working:Update MQTT context / From WORKING
+  fetching --> idle:Update MQTT context / From IDLE
+  working --> fetching:Needs to update context
+  idle --> fetching:Needs to update context
+  working --> waiting:Makes HTTP request
+  waiting --> working:REST response/TIMEOUT / From WORKING
+  waiting --> idle:REST response/TIMEOUT / From IDLE
+  working --> idle:No user detected / PIR sensor
+  idle --> working:Fully connected / User detected
+  idle --> sleep:Long time without user detection / PIR sensor
+  sleep --> boot:Sleeping / User detected
+  boot --> configuring:GPIO4 high level
+  configuring --> boot:BLE EXIT command or TIMEOUT
+  working --> mqtt_off:"Broker" disconnected
+  idle --> mqtt_off:"Broker" disconnected
+  waiting --> mqtt_off:"Broker" disconnected
+  working --> net_off:Wi-Fi disconnected
+  idle --> net_off:Wi-Fi disconnected
+  waiting --> net_off:Wi-Fi disconnected
+  net_off:net off
+  mqtt_off:mqtt off
