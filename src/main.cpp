@@ -42,7 +42,7 @@ void setup()
     configs::ensureLoaded();
     power::configPins();
 
-    const bool enterConfigMode = bluetooth::shouldEnterConfigMode();
+    const bool enterConfigMode = digitalRead(CONFIG_PIN) == HIGH;
 
     display::configTFT();
     display::configSprite();

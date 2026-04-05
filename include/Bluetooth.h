@@ -4,6 +4,5 @@
 
 namespace bluetooth
 {
-    bool shouldEnterConfigMode();
     void runConfigMode();
 }

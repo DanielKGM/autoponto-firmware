@@ -29,11 +29,6 @@ namespace bluetooth
 
         char gPendingPayload[RX_MAX] = {0};
 
-        void releasePin()
-        {
-            gpio_reset_pin((gpio_num_t)CONFIG_PIN);
-        }
-
         void setPendingPayload(const char *payload)
         {
             portENTER_CRITICAL(&gBleMux);
@@ -82,7 +77,7 @@ namespace bluetooth
             size_t written = serializeJson(resp, out, sizeof(out));
             if (written >= sizeof(out))
             {
-                const char *fallback = "{\"success\":false,\"message\":\"resposta grande demais\"}";
+                const char *fallback = R"({"success":false,"message":"resposta grande demais"})";
                 notifyResponse(fallback);
                 return;
             }
@@ -119,7 +114,8 @@ namespace bluetooth
         {
             if (strcmp(req["token"] | "", BLUETOOTH_TOKEN) != 0)
             {
-                sendSimpleResponse(false, "token invalido");
+                std::string msg = std::string("token invalido: ") + (req["token"] | "");
+                sendSimpleResponse(false, msg.c_str());
                 return false;
             }
 
@@ -197,11 +193,11 @@ namespace bluetooth
         {
             if (connected)
             {
-                display::sendDisplayMessage("Bluetooth conectado", 0, &display::ICON_SERVER);
+                display::sendDisplayMessage("Bluetooth conectado!", 0, &display::ICON_HAPPY);
             }
             else
             {
-                display::sendDisplayMessage("Aguardando Bluetooth", 0, &display::ICON_SERVER);
+                display::sendDisplayMessage("Aguardando Bluetooth...", 0, &display::ICON_BLUETOOTH);
             }
         }
 
@@ -276,6 +272,20 @@ namespace bluetooth
             NimBLEDevice::setPower(9);
             NimBLEDevice::setMTU(256);
 
+            gAdvertising = NimBLEDevice::getAdvertising();
+
+            NimBLEAdvertisementData advData;
+            advData.setName(deviceName);
+            advData.addServiceUUID(SERVICE_UUID);
+
+            gAdvertising->setAdvertisementData(advData);
+
+            NimBLEAdvertisementData scanData;
+            scanData.setName(deviceName);
+            gAdvertising->setScanResponseData(scanData);
+
+            gAdvertising->start();
+
             gServer = NimBLEDevice::createServer();
             if (!gServer)
                 return false;
@@ -298,7 +308,7 @@ namespace bluetooth
                 return false;
 
             gRxChar->setCallbacks(new RxCallbacks());
-            gTxChar->setValue("{\"success\":true,\"message\":\"ble pronto\"}");
+            gTxChar->setValue(R"({"success":true,"message":"ble pronto"})");
 
             gServer->start();
 
@@ -308,7 +318,6 @@ namespace bluetooth
 
             gAdvertising->addServiceUUID(SERVICE_UUID);
 
-            // CORREÇÃO: "setScanResponse" passou a ser "enableScanResponse" na v2
             gAdvertising->enableScanResponse(true);
 
             return gAdvertising->start();
@@ -336,31 +345,6 @@ namespace bluetooth
             gHasPendingRequest = false;
             gPendingPayload[0] = '\0';
         }
-    }
-
-    bool shouldEnterConfigMode()
-    {
-        pinMode(CONFIG_PIN, INPUT_PULLUP);
-
-        const TickType_t start = xTaskGetTickCount();
-        bool pressed = false;
-
-        while (xTaskGetTickCount() - start < pdMS_TO_TICKS(CONFIG_CHECK_MS))
-        {
-            if (digitalRead(CONFIG_PIN) == LOW)
-            {
-                vTaskDelay(pdMS_TO_TICKS(30)); // debounce simples
-                if (digitalRead(CONFIG_PIN) == LOW)
-                {
-                    pressed = true;
-                    break;
-                }
-            }
-            vTaskDelay(pdMS_TO_TICKS(5));
-        }
-
-        releasePin();
-        return pressed;
     }
 
     void runConfigMode()
