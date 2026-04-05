@@ -8,21 +8,86 @@ namespace bluetooth
 {
     namespace
     {
-        BluetoothSerial SerialBT;
+        // UUIDs fixos para o serviço de configuração BLE.
+        constexpr const char *SERVICE_UUID = "9d8f6b10-3d8d-4d1b-9c7e-5e6a3c8b1001";
+        constexpr const char *RX_UUID = "9d8f6b10-3d8d-4d1b-9c7e-5e6a3c8b1002";
+        constexpr const char *TX_UUID = "9d8f6b10-3d8d-4d1b-9c7e-5e6a3c8b1003";
+
         constexpr size_t RX_MAX = 512;
+
+        NimBLEServer *gServer = nullptr;
+        NimBLEService *gService = nullptr;
+        NimBLECharacteristic *gRxChar = nullptr;
+        NimBLECharacteristic *gTxChar = nullptr;
+        NimBLEAdvertising *gAdvertising = nullptr;
+
+        volatile bool gClientConnected = false;
+        volatile bool gShouldExit = false;
+        volatile bool gHasPendingRequest = false;
+
+        portMUX_TYPE gBleMux = portMUX_INITIALIZER_UNLOCKED;
+
+        char gPendingPayload[RX_MAX] = {0};
 
         void releasePin()
         {
             gpio_reset_pin((gpio_num_t)CONFIG_PIN);
         }
 
+        void setPendingPayload(const char *payload)
+        {
+            portENTER_CRITICAL(&gBleMux);
+            strlcpy(gPendingPayload, payload ? payload : "", sizeof(gPendingPayload));
+            gHasPendingRequest = true;
+            portEXIT_CRITICAL(&gBleMux);
+        }
+
+        bool takePendingPayload(char *dst, size_t dstSize)
+        {
+            bool hasData = false;
+
+            portENTER_CRITICAL(&gBleMux);
+            if (gHasPendingRequest)
+            {
+                strlcpy(dst, gPendingPayload, dstSize);
+                gPendingPayload[0] = '\0';
+                gHasPendingRequest = false;
+                hasData = true;
+            }
+            portEXIT_CRITICAL(&gBleMux);
+
+            return hasData;
+        }
+
+        void notifyResponse(const char *json)
+        {
+            if (!gTxChar || !json)
+                return;
+
+            gTxChar->setValue(json);
+
+            if (gClientConnected)
+            {
+                gTxChar->notify();
+            }
+        }
+
         void sendSimpleResponse(bool success, const char *message)
         {
             JsonDocument resp;
             resp["success"] = success;
-            resp["message"] = message;
-            serializeJson(resp, SerialBT);
-            SerialBT.println();
+            resp["message"] = message ? message : "";
+
+            char out[RX_MAX];
+            size_t written = serializeJson(resp, out, sizeof(out));
+            if (written >= sizeof(out))
+            {
+                const char *fallback = "{\"success\":false,\"message\":\"resposta grande demais\"}";
+                notifyResponse(fallback);
+                return;
+            }
+
+            notifyResponse(out);
         }
 
         void sendInfoResponse()
@@ -39,8 +104,15 @@ namespace bluetooth
             resp["message"] = "configuracoes atuais";
             resp["data"] = exported.as<JsonVariantConst>();
 
-            serializeJson(resp, SerialBT);
-            SerialBT.println();
+            char out[RX_MAX];
+            size_t written = serializeJson(resp, out, sizeof(out));
+            if (written >= sizeof(out))
+            {
+                sendSimpleResponse(false, "resposta grande demais");
+                return;
+            }
+
+            notifyResponse(out);
         }
 
         bool handleCommand(const JsonDocument &req)
@@ -62,7 +134,7 @@ namespace bluetooth
             if (strcmp(command, "info") == 0)
             {
                 sendInfoResponse();
-                return true;
+                return false;
             }
 
             if (strcmp(command, "update") == 0)
@@ -88,7 +160,7 @@ namespace bluetooth
                 }
 
                 sendSimpleResponse(true, "atualizado com sucesso");
-                return true;
+                return false;
             }
 
             if (strcmp(command, "exit") == 0)
@@ -99,6 +171,26 @@ namespace bluetooth
 
             sendSimpleResponse(false, "comando desconhecido");
             return false;
+        }
+
+        bool processRequestJson(const char *payload)
+        {
+            if (!payload || payload[0] == '\0')
+            {
+                sendSimpleResponse(false, "payload vazio");
+                return false;
+            }
+
+            JsonDocument request;
+            DeserializationError err = deserializeJson(request, payload);
+
+            if (err)
+            {
+                sendSimpleResponse(false, "json invalido");
+                return false;
+            }
+
+            return handleCommand(request);
         }
 
         void showBluetoothStatus(bool connected)
@@ -113,53 +205,137 @@ namespace bluetooth
             }
         }
 
-        bool readBluetoothLine(String &line)
+        // --- CORREÇÃO APLICADA AQUI (Assinaturas V2 com NimBLEConnInfo&) ---
+        class ServerCallbacks : public NimBLEServerCallbacks
         {
-            static String buffer;
-
-            while (SerialBT.available() > 0)
+        public:
+            void onConnect(NimBLEServer *pServer, NimBLEConnInfo &connInfo) override
             {
-                char ch = static_cast<char>(SerialBT.read());
+                (void)pServer;
+                (void)connInfo;
+                gClientConnected = true;
+            }
 
-                if (ch == '\r')
+            void onDisconnect(NimBLEServer *pServer, NimBLEConnInfo &connInfo, int reason) override
+            {
+                (void)connInfo;
+                (void)reason;
+                gClientConnected = false;
+
+                if (pServer)
                 {
-                    continue;
+                    pServer->startAdvertising();
+                }
+            }
+        };
+
+        // --- CORREÇÃO APLICADA AQUI (O onWrite também exige o connInfo na V2) ---
+        class RxCallbacks : public NimBLECharacteristicCallbacks
+        {
+        public:
+            void onWrite(NimBLECharacteristic *pCharacteristic, NimBLEConnInfo &connInfo) override
+            {
+                (void)connInfo; // Omitimos o aviso de unused, pois não usaremos a info da conexão
+
+                if (!pCharacteristic)
+                    return;
+
+                std::string value = pCharacteristic->getValue();
+
+                if (value.empty())
+                {
+                    sendSimpleResponse(false, "payload vazio");
+                    return;
                 }
 
-                if (ch == '\n')
+                if (value.size() >= RX_MAX)
                 {
-                    line = buffer;
-                    buffer = "";
-                    return !line.isEmpty();
-                }
-
-                if (buffer.length() >= RX_MAX - 1)
-                {
-                    buffer = "";
                     sendSimpleResponse(false, "payload muito grande");
-                    return false;
+                    return;
                 }
 
-                buffer += ch;
+                char local[RX_MAX];
+                memcpy(local, value.data(), value.size());
+                local[value.size()] = '\0';
+
+                while (value.size() > 0 &&
+                       (local[strlen(local) - 1] == '\n' || local[strlen(local) - 1] == '\r'))
+                {
+                    local[strlen(local) - 1] = '\0';
+                }
+
+                setPendingPayload(local);
             }
+        };
 
-            return false;
-        }
-
-        bool processBluetoothMessage(const String &line)
+        bool startBleServer(const char *deviceName)
         {
-            JsonDocument request;
-            DeserializationError err = deserializeJson(request, line);
+            NimBLEDevice::init(deviceName);
 
-            if (err)
-            {
-                sendSimpleResponse(false, "json invalido");
+            // Na v2, prefira o valor numérico em dBm ao invés da macro ESP_PWR_LVL_P9
+            NimBLEDevice::setPower(9);
+            NimBLEDevice::setMTU(256);
+
+            gServer = NimBLEDevice::createServer();
+            if (!gServer)
                 return false;
-            }
 
-            return handleCommand(request);
+            gServer->setCallbacks(new ServerCallbacks());
+
+            gService = gServer->createService(SERVICE_UUID);
+            if (!gService)
+                return false;
+
+            gTxChar = gService->createCharacteristic(
+                TX_UUID,
+                NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY);
+
+            gRxChar = gService->createCharacteristic(
+                RX_UUID,
+                NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR);
+
+            if (!gTxChar || !gRxChar)
+                return false;
+
+            gRxChar->setCallbacks(new RxCallbacks());
+            gTxChar->setValue("{\"success\":true,\"message\":\"ble pronto\"}");
+
+            gServer->start();
+
+            gAdvertising = NimBLEDevice::getAdvertising();
+            if (!gAdvertising)
+                return false;
+
+            gAdvertising->addServiceUUID(SERVICE_UUID);
+
+            // CORREÇÃO: "setScanResponse" passou a ser "enableScanResponse" na v2
+            gAdvertising->enableScanResponse(true);
+
+            return gAdvertising->start();
         }
 
+        void stopBleServer()
+        {
+            if (gAdvertising)
+            {
+                gAdvertising->stop();
+            }
+
+            // CORREÇÃO: "disconnectAll" não existe mais e o deinit(true)
+            // já faz o trabalho completo de derrubar a stack BLE e conexões
+            NimBLEDevice::deinit(true);
+
+            gServer = nullptr;
+            gService = nullptr;
+            gRxChar = nullptr;
+            gTxChar = nullptr;
+            gAdvertising = nullptr;
+
+            gClientConnected = false;
+            gShouldExit = false;
+            gHasPendingRequest = false;
+            gPendingPayload[0] = '\0';
+        }
     }
 
     bool shouldEnterConfigMode()
@@ -180,7 +356,6 @@ namespace bluetooth
                     break;
                 }
             }
-
             vTaskDelay(pdMS_TO_TICKS(5));
         }
 
@@ -192,41 +367,41 @@ namespace bluetooth
     {
         setState(SystemState::CONFIGURING);
 
-        char btName[40];
-        snprintf(btName, sizeof(btName), "autoponto-%s", deviceId);
+        char bleName[40];
+        snprintf(bleName, sizeof(bleName), "autoponto-%s", deviceId);
 
-        if (!SerialBT.begin(btName))
+        if (!startBleServer(bleName))
         {
-            display::sendDisplayMessage("Falha ao iniciar Bluetooth", 3000, &display::ICON_SAD);
+            display::sendDisplayMessage("Falha ao iniciar BLE", 3000, &display::ICON_SAD);
             vTaskDelay(pdMS_TO_TICKS(3000));
+            stopBleServer();
             return;
         }
 
         TickType_t lastActivity = xTaskGetTickCount();
         const TickType_t timeout = pdMS_TO_TICKS(CONFIG_TIMEOUT_MS);
 
-        bool wasConnected = false;
-        String receivedLine;
+        bool lastConnected = false;
+        char request[RX_MAX];
 
         showBluetoothStatus(false);
 
         while (true)
         {
-            bool connected = SerialBT.hasClient();
+            bool connected = gClientConnected;
 
-            if (connected != wasConnected)
+            if (connected != lastConnected)
             {
-                wasConnected = connected;
+                lastConnected = connected;
                 lastActivity = xTaskGetTickCount();
                 showBluetoothStatus(connected);
             }
 
-            if (readBluetoothLine(receivedLine))
+            if (takePendingPayload(request, sizeof(request)))
             {
                 lastActivity = xTaskGetTickCount();
 
-                bool shouldExit = processBluetoothMessage(receivedLine);
-
+                bool shouldExit = processRequestJson(request);
                 if (shouldExit)
                 {
                     break;
@@ -241,9 +416,6 @@ namespace bluetooth
             vTaskDelay(pdMS_TO_TICKS(50));
         }
 
-        SerialBT.flush();
-        vTaskDelay(pdMS_TO_TICKS(150));
-        SerialBT.end();
+        stopBleServer();
     }
-
 }

@@ -1,6 +1,6 @@
 #pragma once
 #include <ArduinoJson.h>
-#include <BluetoothSerial.h>
+#include <NimBLEDevice.h>
 
 namespace bluetooth
 {
