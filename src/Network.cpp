@@ -66,7 +66,7 @@ namespace network
                 return false;
             }
 
-            if (context._class[0] != '\0' &&
+            if (context.lesson_name[0] != '\0' &&
                 (context.ticksForNext > 0 || context.ticksRemaining > 0))
             {
                 return true;
@@ -105,7 +105,7 @@ namespace network
                 return false;
             }
 
-            strlcpy(context._class, doc["class"] | "", sizeof(context._class));
+            strlcpy(context.lesson_name, doc["lesson_name"] | "", sizeof(context.lesson_name));
             context.ticksForNext = pdMS_TO_TICKS(doc["msForNext"]) | 0;
             context.ticksRemaining = pdMS_TO_TICKS(doc["msRemaining"]) | 0;
             context.fetchTick = xTaskGetTickCount();

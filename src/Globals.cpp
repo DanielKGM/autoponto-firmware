@@ -17,7 +17,7 @@ AttendanceContext context = AttendanceContext{};
 void clearContext()
 {
     context.fetchTick = 0;
-    context._class[0] = '\0';
+    context.lesson_name[0] = '\0';
     context.ticksForNext = 0;
     context.ticksRemaining = 0;
     setState(SystemState::FETCHING);
