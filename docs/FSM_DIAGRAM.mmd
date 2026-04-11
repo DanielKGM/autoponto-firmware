@@ -12,21 +12,17 @@ stateDiagram
   mqtt_off --> net_off:Wi-Fi disconnected
   mqtt_off --> fetching:Connects to "Broker"
   fetching --> working:Update MQTT context / IDLE = FALSE
-  fetching --> idle:Update MQTT context / IDLE = TRUE
   working --> fetching:Needs to update context
   working --> waiting:Makes HTTP request
   waiting --> working:REST response/TIMEOUT / From WORKING
-  working --> idle:No user detected / PIR sensor
-  idle --> working:Fully connected / User detected
-  idle --> sleep:Long time without user detection / PIR sensor
   sleep --> boot:Sleeping / User detected
   boot --> configuring:GPIO4 high level
   configuring --> boot:BLE EXIT command or TIMEOUT
   working --> mqtt_off:"Broker" disconnected
-  idle --> mqtt_off:"Broker" disconnected
   waiting --> mqtt_off:"Broker" disconnected
   working --> net_off:Wi-Fi disconnected
-  idle --> net_off:Wi-Fi disconnected
   waiting --> net_off:Wi-Fi disconnected
+  ics --> sleep:No user detected / PIR Sensor
   net_off:net off
   mqtt_off:mqtt off
+  ics:idle-capable states
