@@ -11,7 +11,6 @@ enum class SystemState
     CONFIGURING,
     NET_OFF,
     MQTT_OFF,
-    IDLE,
     WORKING,
     WAITING_SERVER,
     FETCHING,
@@ -32,6 +31,7 @@ extern char deviceId[13];
 extern TaskHandle_t TaskDisplay;
 extern TaskHandle_t TaskNetwork;
 extern TaskHandle_t TaskMqtt;
+extern SystemState systemState;
 
 void clearContext();
 void changeTaskCount(short int delta);

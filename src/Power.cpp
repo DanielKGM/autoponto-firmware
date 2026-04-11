@@ -53,7 +53,6 @@ namespace power
         setCpuFrequencyMhz(160);
         esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
         idleFlag = true;
-        setState(SystemState::IDLE);
     }
 
     void exitIdle()
@@ -67,25 +66,20 @@ namespace power
         setCpuFrequencyMhz(240);
         digitalWrite(DISPLAY_ENABLE_PIN, HIGH);
         esp_wifi_set_ps(WIFI_PS_NONE);
+    }
 
-        if (!network::isConnected())
+    bool isBlockingIdle()
+    {
+        switch (systemState)
         {
-            setState(SystemState::NET_OFF);
-            return;
-        }
+        case SystemState::BOOTING:
+        case SystemState::CONFIGURING:
+        case SystemState::SLEEPING:
+            return true;
 
-        if (!mqtt::isConnected())
-        {
-            setState(SystemState::MQTT_OFF);
-            return;
+        default:
+            return sensorTriggered;
         }
-
-        if (checkState(SystemState::FETCHING))
-        {
-            return;
-        }
-
-        setState(SystemState::WORKING);
     }
 
     void configPins()

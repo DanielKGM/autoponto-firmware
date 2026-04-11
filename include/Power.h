@@ -17,5 +17,6 @@ namespace power
     void enterIdle();
     void exitIdle();
     bool checkIdle();
+    bool isBlockingIdle();
     void triggerSleepEvent();
 }

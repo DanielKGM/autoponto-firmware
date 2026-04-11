@@ -42,7 +42,7 @@ void setState(SystemState newState)
     portEXIT_CRITICAL(&systemStateMux);
 
     // only publish meaningful states
-    if (newState < SystemState::IDLE)
+    if (newState < SystemState::WORKING)
     {
         return;
     }
@@ -70,8 +70,6 @@ const char *stateStr(SystemState state)
 {
     switch (state)
     {
-    case SystemState::IDLE:
-        return "IDLE";
     case SystemState::WORKING:
         return "WORKING";
     case SystemState::WAITING_SERVER:

@@ -244,9 +244,9 @@ namespace display
 
         const TickType_t idleDelay = pdMS_TO_TICKS(1000);
         const TickType_t videoDelay = pdMS_TO_TICKS(10);
-        const TickType_t normalDelay = pdMS_TO_TICKS(100);
+        const TickType_t msgDelay = pdMS_TO_TICKS(100);
 
-        TickType_t currentDelay = normalDelay;
+        TickType_t currentDelay = msgDelay;
         // only trigger idle actions once
         bool idleTrigger = true;
 
@@ -255,12 +255,20 @@ namespace display
             TickType_t now = xTaskGetTickCount();
 
             //
+
+            if (!power::checkIdle() && !idleTrigger)
+            {
+                idleTrigger = true;
+                currentDelay = msgDelay;
+            }
+
             if (power::checkIdle() && idleTrigger)
             {
                 xQueueReset(messageQueue);
                 msg = DisplayMessage{};
                 tft.fillScreen(TFT_BLACK);
                 currentDelay = idleDelay;
+                overlayUntil = 0;
                 idleTrigger = false;
             }
             else if (overlayUntil > now && msg.duration > 0)
@@ -274,15 +282,10 @@ namespace display
                 //
                 overlayUntil = (msg.duration > 0) ? (now + msg.duration) : 0;
                 showText(msg.text, msg.icon);
-                currentDelay = normalDelay;
+                currentDelay = msgDelay;
             }
             else if (checkState(SystemState::WORKING) || checkState(SystemState::WAITING_SERVER))
             {
-                if (!idleTrigger)
-                {
-                    idleTrigger = true;
-                }
-
                 showCamFrame(ulTaskNotifyTake(pdTRUE, 0) > 0);
                 currentDelay = videoDelay;
             }

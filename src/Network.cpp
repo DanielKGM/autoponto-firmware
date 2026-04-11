@@ -219,14 +219,14 @@ namespace network
 
             if (checkState(SystemState::FETCHING) && getContext())
             {
-                setState(power::checkIdle() ? SystemState::IDLE : SystemState::WORKING);
+                setState(SystemState::WORKING);
             }
             else if (checkState(SystemState::WAITING_SERVER) && waitTimeOut)
             {
                 lastReqTick = now;
                 setState(SystemState::WORKING);
             }
-            else if (checkState(SystemState::WORKING) && shouldSendFrame)
+            else if (!power::checkIdle() && checkState(SystemState::WORKING) && shouldSendFrame)
             {
                 lastReqTick = now;
                 xTaskNotifyGive(TaskDisplay);

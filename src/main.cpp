@@ -109,8 +109,8 @@ void loop()
     if (sensorTriggered)
     {
         changeTriggeredFlag(false);
-        exitIdle();
         lastSensorTick = now;
+        exitIdle();
     }
 
     if (buzzerTriggered)
@@ -119,19 +119,12 @@ void loop()
         positiveFB();
     }
 
-    if (!checkIdle() && (now - lastSensorTick) > ticksToIdle)
+    if (!checkIdle() && (now - lastSensorTick) > ticksToIdle && !isBlockingIdle())
     {
-        if (checkState(SystemState::WORKING) || checkState(SystemState::NET_OFF) || checkState(SystemState::MQTT_OFF))
-        {
-            enterIdle();
-        }
-        else
-        {
-            lastSensorTick = now;
-        }
+        enterIdle();
     }
 
-    if ((now - lastSensorTick) > ticksToSleep && checkState(SystemState::IDLE))
+    if ((now - lastSensorTick) > ticksToSleep && checkIdle())
     {
         triggerSleepEvent();
     }

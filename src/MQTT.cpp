@@ -119,8 +119,12 @@ namespace mqtt
             if (doc["auth"].is<bool>() && checkState(SystemState::WAITING_SERVER))
             {
                 setState(SystemState::WORKING);
-                display::sendDisplayMessage(doc["message"] | "", 5000, &display::ICON_HAPPY);
-                power::buzzerTriggered = true;
+
+                if (!power::checkIdle())
+                {
+                    display::sendDisplayMessage(doc["message"] | "", 5000, &display::ICON_HAPPY);
+                    power::buzzerTriggered = true;
+                }
             }
 
             if (doc["fetch"].is<bool>())
