@@ -12,6 +12,7 @@ EventGroupHandle_t systemEvents = xEventGroupCreate();
 TaskHandle_t TaskDisplay;
 TaskHandle_t TaskNetwork;
 TaskHandle_t TaskMqtt;
+TaskHandle_t TaskCamera;
 AttendanceContext context = AttendanceContext{};
 
 void clearContext()

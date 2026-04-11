@@ -4,10 +4,10 @@
 #include "Icons.h"
 #include "Power.h"
 #include "Font.h"
+#include "Camera.h"
 
 namespace display
 {
-    QueueHandle_t frameQueue = xQueueCreate(2, sizeof(FrameBuffer));
 
     const Icon ICON_WIFI = {wifi_icon, 38, 38, TFT_BLACK};
     const Icon ICON_SAD = {sad_icon, 38, 38, TFT_RED};
@@ -157,49 +157,25 @@ namespace display
             bgSpr.pushRotated(270);
         }
 
-        bool showCamFrame(bool captureFrame)
+        bool showCamFrame()
         {
-            camera_fb_t *fb = esp_camera_fb_get();
+            camera::FrameBuffer frame;
 
-            if (!fb)
+            if (!camera::takePreviewFrame(frame, 0))
             {
                 return false;
             }
 
             bool converted = false;
-            size_t len = fb->len;
 
-            if (decoder.openRAM(fb->buf, len, drawMCUs))
+            if (decoder.openRAM(frame.data, frame.len, drawMCUs))
             {
                 decoder.setPixelType(RGB565_BIG_ENDIAN);
                 converted = decoder.decode(0, 0, 0);
                 decoder.close();
             }
 
-            uint8_t *fbCopy = captureFrame ? (uint8_t *)ps_malloc(len) : nullptr;
-
-            if (captureFrame)
-            {
-                memcpy(fbCopy, fb->buf, len);
-            }
-
-            esp_camera_fb_return(fb);
-
-            if (captureFrame)
-            {
-                FrameBuffer frame;
-                frame.len = len;
-                frame.data = fbCopy;
-
-                FrameBuffer old;
-                if (xQueueReceive(frameQueue, &old, 0) == pdTRUE)
-                {
-                    free(old.data);
-                }
-
-                xQueueSend(frameQueue, &frame, 0);
-            }
-
+            camera::releaseFrame(frame);
             return converted;
         }
     } //
@@ -243,7 +219,7 @@ namespace display
         TickType_t overlayUntil = 0;
 
         const TickType_t idleDelay = pdMS_TO_TICKS(1000);
-        const TickType_t videoDelay = pdMS_TO_TICKS(10);
+        const TickType_t videoDelay = pdMS_TO_TICKS(66); // ~15 FPS
         const TickType_t msgDelay = pdMS_TO_TICKS(100);
 
         TickType_t currentDelay = msgDelay;
@@ -286,7 +262,7 @@ namespace display
             }
             else if (checkState(SystemState::WORKING) || checkState(SystemState::WAITING_SERVER))
             {
-                showCamFrame(ulTaskNotifyTake(pdTRUE, 0) > 0);
+                showCamFrame();
                 currentDelay = videoDelay;
             }
 

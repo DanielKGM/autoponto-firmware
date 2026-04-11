@@ -5,6 +5,7 @@
 #include "MQTT.h"
 #include "RuntimeConfig.h"
 #include "Config.h"
+#include "Camera.h"
 
 namespace network
 {
@@ -14,17 +15,20 @@ namespace network
     {
         bool sendFrame()
         {
-            using namespace display;
-
             if (!isConnected())
             {
                 return false;
             }
 
-            FrameBuffer frame;
-
-            if (xQueueReceive(frameQueue, &frame, 1000) != pdTRUE)
+            if (!camera::requestSnapshot())
             {
+                return false;
+            }
+
+            camera::FrameBuffer frame;
+            if (!camera::takeSnapshotFrame(frame, pdMS_TO_TICKS(500)))
+            {
+                display::sendDisplayMessage("Falha ao capturar frame!", 2000, &display::ICON_SAD);
                 return false;
             }
 
@@ -46,18 +50,18 @@ namespace network
             }
 
             http.end();
-            free(frame.data);
+            camera::releaseFrame(frame);
 
             bool ok = resp == HTTP_CODE_OK;
 
             if (!ok)
             {
-                sendDisplayMessage("Servidor indisponivel para envios!", 3000, &ICON_SAD);
-                return ok;
+                display::sendDisplayMessage("Servidor indisponivel para envios!", 3000, &display::ICON_SAD);
+                return false;
             }
 
             setState(SystemState::WAITING_SERVER);
-            return ok;
+            return true;
         }
 
         bool getContext()
@@ -238,7 +242,6 @@ namespace network
             else if (!power::checkIdle() && checkState(SystemState::WORKING) && shouldSendFrame)
             {
                 lastReqTick = now;
-                xTaskNotifyGive(TaskDisplay);
                 sendFrame();
             }
         }

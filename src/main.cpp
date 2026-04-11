@@ -66,12 +66,20 @@ void setup()
     }
 
     power::configSleep();
-    camera::configCamera();
 
     if (!camera::startCamera())
     {
         return;
     }
+
+    xTaskCreatePinnedToCore(
+        camera::TaskCameraCode,
+        "TaskCamera",
+        8192,
+        nullptr,
+        3,
+        &TaskCamera,
+        APP_CPU_NUM);
 
     xTaskCreatePinnedToCore(
         network::TaskNetworkCode,

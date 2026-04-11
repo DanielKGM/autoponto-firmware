@@ -1,16 +1,9 @@
 #pragma once
 #include <JPEGDEC.h>
 #include <TFT_eSPI.h>
-#include "esp_camera.h"
 
 namespace display
 {
-    struct FrameBuffer
-    {
-        uint8_t *data;
-        size_t len;
-    };
-
     struct Icon
     {
         const uint16_t *data;
@@ -19,7 +12,6 @@ namespace display
         uint32_t color;
     };
 
-    extern QueueHandle_t frameQueue;
     extern const Icon ICON_WIFI;
     extern const Icon ICON_SAD;
     extern const Icon ICON_HAPPY;

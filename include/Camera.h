@@ -1,30 +1,26 @@
 #pragma once
 
 #include "esp_camera.h"
-
 #define PWDN_GPIO_NUM 32
-#define RESET_GPIO_NUM -1
-#define XCLK_GPIO_NUM 0
-#define XCLK_FREQ_HZ 20000000
-#define SIOD_GPIO_NUM 26
-#define SIOC_GPIO_NUM 27
-#define Y9_GPIO_NUM 35
-#define Y8_GPIO_NUM 34
-#define Y7_GPIO_NUM 39
-#define Y6_GPIO_NUM 36
-#define Y5_GPIO_NUM 21
-#define Y4_GPIO_NUM 19
-#define Y3_GPIO_NUM 18
-#define Y2_GPIO_NUM 5
-#define VSYNC_GPIO_NUM 25
-#define HREF_GPIO_NUM 23
-#define PCLK_GPIO_NUM 22
-#define BUFFER_NUMBER 2
-#define JPEG_QUALITY 12
+#include "Arduino.h"
 
 namespace camera
 {
-    extern camera_config_t config;
-    void configCamera();
+    struct FrameBuffer
+    {
+        uint8_t *data = nullptr;
+        size_t len = 0;
+    };
+
     bool startCamera();
+
+    void TaskCameraCode(void *pvParameters);
+    void releaseFrame(FrameBuffer &frame);
+
+    // for http request
+    bool requestSnapshot();
+    bool takeSnapshotFrame(FrameBuffer &out, TickType_t wait = 0);
+    // for display feedback
+    bool takePreviewFrame(FrameBuffer &out, TickType_t wait = 0);
+
 }
