@@ -16,7 +16,6 @@ stateDiagram
   working --> fetching:Needs to update context
   working --> waiting:Makes HTTP request
   waiting --> working:REST response/TIMEOUT / From WORKING
-  waiting --> idle:REST response/TIMEOUT / From IDLE
   working --> idle:No user detected / PIR sensor
   idle --> working:Fully connected / User detected
   idle --> sleep:Long time without user detection / PIR sensor
