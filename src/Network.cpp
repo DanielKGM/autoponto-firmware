@@ -48,13 +48,16 @@ namespace network
             http.end();
             free(frame.data);
 
-            if (resp != HTTP_CODE_OK)
+            bool ok = resp == HTTP_CODE_OK;
+
+            if (!ok)
             {
                 sendDisplayMessage("Servidor indisponivel para envios!", 3000, &ICON_SAD);
+                return ok;
             }
 
             setState(SystemState::WAITING_SERVER);
-            return resp == HTTP_CODE_OK;
+            return ok;
         }
 
         bool getContext()

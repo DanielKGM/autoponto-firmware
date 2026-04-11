@@ -80,7 +80,12 @@ namespace power
             return;
         }
 
-        setState(SystemState::FETCHING);
+        if (checkState(SystemState::FETCHING))
+        {
+            return;
+        }
+
+        setState(SystemState::WORKING);
     }
 
     void configPins()

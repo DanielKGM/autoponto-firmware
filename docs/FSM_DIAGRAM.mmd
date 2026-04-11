@@ -11,10 +11,9 @@ stateDiagram
   net_off --> mqtt_off:Connects to Wi-Fi network
   mqtt_off --> net_off:Wi-Fi disconnected
   mqtt_off --> fetching:Connects to "Broker"
-  fetching --> working:Update MQTT context / From WORKING
-  fetching --> idle:Update MQTT context / From IDLE
+  fetching --> working:Update MQTT context / IDLE = FALSE
+  fetching --> idle:Update MQTT context / IDLE = TRUE
   working --> fetching:Needs to update context
-  idle --> fetching:Needs to update context
   working --> waiting:Makes HTTP request
   waiting --> working:REST response/TIMEOUT / From WORKING
   waiting --> idle:REST response/TIMEOUT / From IDLE

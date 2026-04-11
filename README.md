@@ -2,8 +2,8 @@
 
 ## Finite State Machine (FSM) Diagram
 
-![Finite State Machine (FSM) Diagram](docs/FSM_DIAGRAM.svg)
+![Finite State Machine (FSM) Diagram](docs/FSM_DIAGRAM.png)
 
 <div align="right">
-  <a href="https://mermaid.ai/play#pako:eNqNU0tvozAQ_isjjiuhXnri0ENa0kWb1yZErbSsViyeBAuwU9tsGlX97-sxgUIboZyMPd9r8PjNyyRDL_B8309EJsWO74NEAJTpSdYmACwL2pocKwxAIatfXVnKIgCBMhGOqU1q8IGne5VWVGdcYWa4FDCJaf_r22_w_Tv4K6WhPa3uQKD5I3e7YHPSBitoEtTWB25ggeYoVQGJF6e6SDzIFFobRgJnntOoXkwjci-FsLYajIQn7k85wUiCGC1qYNugGNdZQ23EB9AdmiznYj9QT7yJkgWqxCN8C3F48iP49sBsWJj_jGNqy-CrsT1Nlazgabn-ES0ev1A5K3GMFz3MQiKdLYbxFojMZasbgTOX8KR7Nbgvfky5Ifg8LVDD9zhe2RF4qVE3yKY66HodbmKL0QcpNN7E0TxcbuMLffe5ru1R4qXGHWthO9CogKFxt2cJq2gNGoWWatB6G3Bal-UJuuu2hG1fYMDRJeIhmEnraHiFcOQmt6-ib0kj_tnT0bpxDza0pdQXrLp30A4-RXxcRctbyPk-hxL_YUnAXv1DeTILIXyOaE6qKhUMpILzn_v8t7o38jG5X8a-6_sacP8Cr8L3woy_vi7GOKwfYBzZVu0Kdu2_8IA-6NB7_w97RLiV">Visualizar no Mermaid Live Editor</a>
+  <a href="https://mermaid.ai/d/b9e9db8c-9ff8-49d3-acdb-d40e61b534a2">Mermaid Live Editor</a>
 </div>

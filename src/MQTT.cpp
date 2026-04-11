@@ -116,9 +116,10 @@ namespace mqtt
                 publishSystemStats();
             }
 
-            if (doc["auth"].is<bool>())
+            if (doc["auth"].is<bool>() && checkState(SystemState::WAITING_SERVER))
             {
-                display::sendDisplayMessage(doc["student"] | "", 5000, &display::ICON_HAPPY);
+                setState(SystemState::WORKING);
+                display::sendDisplayMessage(doc["message"] | "", 5000, &display::ICON_HAPPY);
                 power::buzzerTriggered = true;
             }
 
