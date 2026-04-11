@@ -189,6 +189,9 @@ namespace network
         const TickType_t waitInterval = pdMS_TO_TICKS(RESPONSE_WAIT_TIMEOUT_MS);
         const TickType_t reqInterval = pdMS_TO_TICKS(REST_POST_INTERVAL_MS);
 
+        const TickType_t fetchRetryInterval = pdMS_TO_TICKS(5000);
+        TickType_t lastFetchAttempt = 0;
+
         TickType_t lastReqTick = 0;
 
         while (true)
@@ -217,9 +220,15 @@ namespace network
             bool waitTimeOut = lastRequestInterval > waitInterval;
             bool shouldSendFrame = lastRequestInterval > reqInterval && context.ticksRemaining;
 
-            if (checkState(SystemState::FETCHING) && getContext())
+            if (checkState(SystemState::FETCHING) &&
+                (now - lastFetchAttempt) > fetchRetryInterval)
             {
-                setState(SystemState::WORKING);
+                lastFetchAttempt = now;
+
+                if (getContext())
+                {
+                    setState(SystemState::WORKING);
+                }
             }
             else if (checkState(SystemState::WAITING_SERVER) && waitTimeOut)
             {
