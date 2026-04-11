@@ -56,7 +56,7 @@ namespace network
 
             if (!ok)
             {
-                display::sendDisplayMessage("Servidor indisponivel para envios!", 3000, &display::ICON_SAD);
+                display::sendDisplayMessage("Servidor indisponivel para envios!", 2000, &display::ICON_SAD);
                 return false;
             }
 

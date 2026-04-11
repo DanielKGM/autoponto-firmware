@@ -15,4 +15,4 @@
 #define HREF_GPIO_NUM 23
 #define PCLK_GPIO_NUM 22
 #define BUFFER_NUMBER 2
-#define JPEG_QUALITY 12
+#define JPEG_QUALITY 10

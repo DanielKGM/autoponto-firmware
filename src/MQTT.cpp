@@ -21,7 +21,7 @@ namespace mqtt
         };
 
         PubSubClient mqtt;
-        QueueHandle_t mqttQueue = xQueueCreate(10, sizeof(MqttMsg));
+        QueueHandle_t mqttQueue = xQueueCreate(5, sizeof(MqttMsg));
 
         void buildTopics()
         {
@@ -44,6 +44,7 @@ namespace mqtt
             doc["rssi"] = network::getRSSI();
             doc["heap_free"] = ESP.getFreeHeap();
             doc["heap_min"] = ESP.getMinFreeHeap();
+            doc["now_ms"] = esp_timer_get_time() / 1000ULL;
 
             if (psramFound())
             {
@@ -51,12 +52,21 @@ namespace mqtt
                 doc["psram_total"] = ESP.getPsramSize();
             }
 
-            doc["stk_disp"] = TaskDisplay ? uxTaskGetStackHighWaterMark(TaskDisplay) : 0;
-            doc["stk_net"] = TaskNetwork ? uxTaskGetStackHighWaterMark(TaskNetwork) : 0;
-            doc["stk_mqtt"] = TaskMqtt ? uxTaskGetStackHighWaterMark(TaskMqtt) : 0;
+            JsonObject stk = doc["stacks"].to<JsonObject>();
+
+            stk["stk_disp"] = TaskDisplay ? uxTaskGetStackHighWaterMark(TaskDisplay) : 0;
+            stk["stk_net"] = TaskNetwork ? uxTaskGetStackHighWaterMark(TaskNetwork) : 0;
+            stk["stk_mqtt"] = TaskMqtt ? uxTaskGetStackHighWaterMark(TaskMqtt) : 0;
+            stk["stk_cam"] = TaskCamera ? uxTaskGetStackHighWaterMark(TaskCamera) : 0;
 
             TaskHandle_t loopTask = xTaskGetHandle("loopTask");
-            doc["stk_loop"] = loopTask ? uxTaskGetStackHighWaterMark(loopTask) : 0;
+            stk["stk_loop"] = loopTask ? uxTaskGetStackHighWaterMark(loopTask) : 0;
+
+            JsonObject ctx = doc["context"].to<JsonObject>();
+
+            ctx["lesson"] = context.lesson_name;
+            ctx["remaining_ms"] = pdTICKS_TO_MS(context.ticksRemaining);
+            ctx["next_ms"] = pdTICKS_TO_MS(context.ticksForNext);
 
             if (doc.overflowed())
             {
@@ -65,6 +75,14 @@ namespace mqtt
 
             MqttMsg msg{};
             strcpy(msg.topic, topicLogs);
+
+            size_t n = measureJson(doc);
+
+            if (n >= sizeof(msg.payload))
+            {
+                return;
+            }
+
             serializeJson(doc, msg.payload, sizeof(msg.payload));
             msg.retain = false;
 
@@ -111,7 +129,7 @@ namespace mqtt
                 return;
             }
 
-            if (doc["stats"].is<bool>())
+            if (doc["stats"] == true)
             {
                 publishSystemStats();
             }
@@ -122,7 +140,7 @@ namespace mqtt
 
                 if (!power::checkIdle())
                 {
-                    display::sendDisplayMessage(doc["message"] | "", 5000, &display::ICON_HAPPY);
+                    display::sendDisplayMessage(doc["msg"] | "", 5000, &(doc["auth"] == true ? display::ICON_HAPPY : display::ICON_SAD));
                     power::buzzerTriggered = true;
                 }
             }
@@ -140,6 +158,7 @@ namespace mqtt
             mqtt.setClient(network::wifiClient);
             mqtt.setServer(runtimeConfig.mqttUrl, runtimeConfig.mqttPort);
             mqtt.setCallback(mqttCallback);
+            mqtt.setBufferSize(1024);
 
             return true;
         }

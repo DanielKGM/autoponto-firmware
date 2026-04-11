@@ -3,7 +3,7 @@
 #include <PubSubClient.h>
 
 #define MQTT_TOPIC_SIZE 17 // deviceId + '/' + ('log' | 'cmd') + '/0'
-#define MQTT_PAYLOAD_MAX 256
+#define MQTT_PAYLOAD_MAX 512
 
 namespace mqtt
 {
