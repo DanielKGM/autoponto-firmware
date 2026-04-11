@@ -224,7 +224,7 @@ namespace network
             else if (checkState(SystemState::WAITING_SERVER) && waitTimeOut)
             {
                 lastReqTick = now;
-                setState(power::checkIdle() ? SystemState::IDLE : SystemState::WORKING);
+                setState(SystemState::WORKING);
             }
             else if (checkState(SystemState::WORKING) && shouldSendFrame)
             {
