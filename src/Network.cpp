@@ -77,7 +77,7 @@ namespace network
 
             HTTPClient http;
             http.setTimeout(REST_TIMEOUT_MS);
-            http.begin(String(runtimeConfig.restUrl) + String(runtimeConfig.restFetchPath) + String(deviceId));
+            http.begin(String(runtimeConfig.restUrl) + String(runtimeConfig.restFetchPath));
             http.addHeader("X-Device-Id", deviceId);
             http.addHeader("X-Auth", runtimeConfig.restPass);
 
