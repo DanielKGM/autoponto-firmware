@@ -40,6 +40,7 @@ namespace mqtt
             JsonDocument doc;
 
             doc["id"] = deviceId;
+            doc["state"] = stateStr(systemState);
             doc["cpu_freq"] = ESP.getCpuFreqMHz();
             doc["rssi"] = network::getRSSI();
             doc["heap_free"] = ESP.getFreeHeap();
@@ -58,9 +59,6 @@ namespace mqtt
             stk["stk_net"] = TaskNetwork ? uxTaskGetStackHighWaterMark(TaskNetwork) : 0;
             stk["stk_mqtt"] = TaskMqtt ? uxTaskGetStackHighWaterMark(TaskMqtt) : 0;
             stk["stk_cam"] = TaskCamera ? uxTaskGetStackHighWaterMark(TaskCamera) : 0;
-
-            TaskHandle_t loopTask = xTaskGetHandle("loopTask");
-            stk["stk_loop"] = loopTask ? uxTaskGetStackHighWaterMark(loopTask) : 0;
 
             JsonObject ctx = doc["context"].to<JsonObject>();
 
@@ -138,9 +136,9 @@ namespace mqtt
             {
                 setState(SystemState::WORKING);
 
-                if (!power::checkIdle())
+                if (doc["auth"] && !power::checkIdle())
                 {
-                    display::sendDisplayMessage(doc["msg"] | "", 5000, &(doc["auth"] == true ? display::ICON_HAPPY : display::ICON_SAD));
+                    display::sendDisplayMessage(doc["msg"] | "", 5000, &display::ICON_HAPPY);
                     power::buzzerTriggered = true;
                 }
             }

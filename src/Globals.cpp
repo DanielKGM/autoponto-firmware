@@ -73,10 +73,10 @@ const char *stateStr(SystemState state)
     {
     case SystemState::WORKING:
         return "WORKING";
-    case SystemState::WAITING_SERVER:
-        return "WAITING_SERVER";
     case SystemState::SLEEPING:
         return "SLEEPING";
+    case SystemState::WAITING_SERVER:
+        return "WAITING SERVER";
     case SystemState::FETCHING:
         return "FETCHING";
     default:

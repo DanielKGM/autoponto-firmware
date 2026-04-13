@@ -8,7 +8,6 @@ namespace bluetooth
 {
     namespace
     {
-        // UUIDs fixos para o serviço de configuração BLE.
         constexpr const char *SERVICE_UUID = "9d8f6b10-3d8d-4d1b-9c7e-5e6a3c8b1001";
         constexpr const char *RX_UUID = "9d8f6b10-3d8d-4d1b-9c7e-5e6a3c8b1002";
         constexpr const char *TX_UUID = "9d8f6b10-3d8d-4d1b-9c7e-5e6a3c8b1003";
@@ -201,7 +200,6 @@ namespace bluetooth
             }
         }
 
-        // --- CORREÇÃO APLICADA AQUI (Assinaturas V2 com NimBLEConnInfo&) ---
         class ServerCallbacks : public NimBLEServerCallbacks
         {
         public:
@@ -225,13 +223,12 @@ namespace bluetooth
             }
         };
 
-        // --- CORREÇÃO APLICADA AQUI (O onWrite também exige o connInfo na V2) ---
         class RxCallbacks : public NimBLECharacteristicCallbacks
         {
         public:
             void onWrite(NimBLECharacteristic *pCharacteristic, NimBLEConnInfo &connInfo) override
             {
-                (void)connInfo; // Omitimos o aviso de unused, pois não usaremos a info da conexão
+                (void)connInfo;
 
                 if (!pCharacteristic)
                     return;
@@ -268,7 +265,6 @@ namespace bluetooth
         {
             NimBLEDevice::init(deviceName);
 
-            // Na v2, prefira o valor numérico em dBm ao invés da macro ESP_PWR_LVL_P9
             NimBLEDevice::setPower(9);
             NimBLEDevice::setMTU(256);
 
@@ -330,8 +326,6 @@ namespace bluetooth
                 gAdvertising->stop();
             }
 
-            // CORREÇÃO: "disconnectAll" não existe mais e o deinit(true)
-            // já faz o trabalho completo de derrubar a stack BLE e conexões
             NimBLEDevice::deinit(true);
 
             gServer = nullptr;

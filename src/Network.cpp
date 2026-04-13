@@ -97,7 +97,7 @@ namespace network
 
             if (resp != HTTP_CODE_OK)
             {
-                sendDisplayMessage("Servidor indisponivel para sincronizacao!", 3000, &ICON_SAD);
+                sendDisplayMessage("Servidor indisponivel para sincronizacao!", 2000, &ICON_SAD);
                 http.end();
                 return false;
             }
@@ -107,7 +107,7 @@ namespace network
 
             if (error)
             {
-                sendDisplayMessage("Erro em analisar as informações!", 3000, &ICON_SAD);
+                sendDisplayMessage("Erro em analisar as informações!", 2000, &ICON_SAD);
                 http.end();
                 return false;
             }
@@ -117,6 +117,12 @@ namespace network
             context.ticksRemaining = pdMS_TO_TICKS(doc["msRemaining"]) | 0;
             context.fetchTick = xTaskGetTickCount();
             http.end();
+
+            if (!(context.ticksForNext || context.ticksRemaining))
+            {
+                sendDisplayMessage("Sem agendamento disponivel para o dispositivo!", 2000, &ICON_SAD);
+                return false;
+            }
 
             mqtt::publish(mqtt::topicLogs, "{\"synced\":true}", true);
 

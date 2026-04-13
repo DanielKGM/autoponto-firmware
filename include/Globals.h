@@ -7,12 +7,12 @@
 
 enum class SystemState
 {
-    BOOTING,
-    CONFIGURING,
-    NET_OFF,
-    MQTT_OFF,
+    BOOTING,        // OFFLINE
+    CONFIGURING,    // OFFLINE
+    NET_OFF,        // OFFLINE
+    MQTT_OFF,       // OFFLINE
+    WAITING_SERVER, // not logged
     WORKING,
-    WAITING_SERVER,
     FETCHING,
     SLEEPING
 };
