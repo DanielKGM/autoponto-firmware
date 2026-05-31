@@ -81,11 +81,13 @@ void loop()
     using namespace power;
     TickType_t now = xTaskGetTickCount();
 
-    if (context.ticksRemaining > 0 && (now - context.fetchTick > context.ticksRemaining))
+    if (context.ticksRemaining > 0 &&
+        getRemainingTicks(now, context.ticksRemaining, context.fetchTick) == 0)
     {
         clearContext();
     }
-    else if (context.ticksForNext > 0 && (now - context.fetchTick > context.ticksForNext))
+    else if (context.ticksForNext > 0 &&
+             getRemainingTicks(now, context.ticksForNext, context.fetchTick) == 0)
     {
         clearContext();
     }

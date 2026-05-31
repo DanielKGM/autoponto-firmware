@@ -18,6 +18,7 @@ namespace display
     extern const Icon ICON_SERVER;
 
     bool sendDisplayMessage(const char *text, unsigned long durationMs = 100, const Icon *icon = nullptr);
+    bool isFullscreenMessageActive();
     void TaskDisplayCode(void *pvParameters);
 
     void configTFT();

@@ -111,17 +111,24 @@ namespace network
                 return false;
             }
 
-            strlcpy(context.lesson_name, doc["lesson_name"] | "", sizeof(context.lesson_name));
-            context.ticksForNext = pdMS_TO_TICKS(doc["msForNext"]) | 0;
-            context.ticksRemaining = pdMS_TO_TICKS(doc["msRemaining"]) | 0;
-            context.fetchTick = xTaskGetTickCount();
+            uint32_t msForNext = doc["msForNext"] | 0;
+            uint32_t msRemaining = doc["msRemaining"] | 0;
             http.end();
 
-            if (!(context.ticksForNext || context.ticksRemaining))
+            if (msForNext == 0 && msRemaining == 0)
             {
-                sendDisplayMessage("Sem agendamento disponivel para o dispositivo!", 2000, &ICON_SAD);
+                context.lesson_name[0] = '\0';
+                context.ticksForNext = 0;
+                context.ticksRemaining = 0;
+                context.fetchTick = 0;
+                setState(SystemState::FETCHING);
                 return false;
             }
+
+            strlcpy(context.lesson_name, doc["lesson_name"] | "", sizeof(context.lesson_name));
+            context.ticksForNext = pdMS_TO_TICKS(msForNext);
+            context.ticksRemaining = pdMS_TO_TICKS(msRemaining);
+            context.fetchTick = xTaskGetTickCount();
 
             mqtt::publish(mqtt::topicLogs, "{\"synced\":true}", true);
 
@@ -227,7 +234,10 @@ namespace network
 
             const TickType_t lastRequestInterval = now - lastReqTick;
             bool waitTimeOut = lastRequestInterval > waitInterval;
-            bool shouldSendFrame = lastRequestInterval > reqInterval && context.ticksRemaining;
+            bool shouldSendFrame =
+                lastRequestInterval > reqInterval &&
+                context.ticksRemaining > 0 &&
+                !display::isFullscreenMessageActive();
 
             if (checkState(SystemState::FETCHING) &&
                 (now - lastFetchAttempt) > fetchRetryInterval)

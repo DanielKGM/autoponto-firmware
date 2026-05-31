@@ -38,4 +38,5 @@ short int checkTaskCount();
 void setState(SystemState newState);
 bool checkState(SystemState state);
 bool checkSleepEvent(TickType_t waitInterval);
+TickType_t getRemainingTicks(TickType_t now, TickType_t totalTicks, TickType_t startTick);
 const char *stateStr(SystemState state);

@@ -67,6 +67,12 @@ bool checkSleepEvent(TickType_t waitInterval)
            EVT_SLEEP;
 }
 
+TickType_t getRemainingTicks(TickType_t now, TickType_t totalTicks, TickType_t startTick)
+{
+    TickType_t elapsed = now - startTick;
+    return elapsed >= totalTicks ? 0 : totalTicks - elapsed;
+}
+
 const char *stateStr(SystemState state)
 {
     switch (state)

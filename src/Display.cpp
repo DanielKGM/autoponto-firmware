@@ -25,19 +25,29 @@ namespace display
 
         JPEGDEC decoder;
         TFT_eSPI tft = TFT_eSPI();
-        TFT_eSprite bgSpr = TFT_eSprite(&tft);
-        TFT_eSprite spr = TFT_eSprite(&tft);
+        TFT_eSprite screenSpr = TFT_eSprite(&tft);
+        TFT_eSprite textSpr = TFT_eSprite(&tft);
         QueueHandle_t messageQueue = xQueueCreate(5, sizeof(DisplayMessage));
+        volatile bool fullscreenMessageActive = false;
+
+        const TickType_t contextTextCycle = pdMS_TO_TICKS(3000);
+        const uint16_t textBackgroundColor = TFT_BLACK;
+
+        struct TextBlock
+        {
+            int16_t width;
+            int16_t height;
+        };
 
         int drawMCUs(JPEGDRAW *pDraw)
         {
-            tft.pushImage(pDraw->x, pDraw->y, pDraw->iWidth, pDraw->iHeight, pDraw->pPixels);
+            screenSpr.pushImage(pDraw->x, pDraw->y, pDraw->iWidth, pDraw->iHeight, pDraw->pPixels);
             return 1;
         }
 
         void splitTextTwoLines(const String &text, String &l1, String &l2, int maxW)
         {
-            if (spr.textWidth(text) <= maxW)
+            if (textSpr.textWidth(text) <= maxW)
             {
                 l1 = text;
                 l2 = "";
@@ -49,7 +59,7 @@ namespace display
             for (int i = 0; i < text.length(); i++)
             {
                 if (text[i] == ' ' &&
-                    spr.textWidth(text.substring(0, i)) <= maxW)
+                    textSpr.textWidth(text.substring(0, i)) <= maxW)
                 {
                     split = i;
                 }
@@ -63,13 +73,13 @@ namespace display
             l1 = text.substring(0, split);
             l2 = text.substring(split + 1);
 
-            if (spr.textWidth(l2) > maxW)
+            if (textSpr.textWidth(l2) > maxW)
             {
                 const String ell = "...";
-                int ellW = spr.textWidth(ell);
+                int ellW = textSpr.textWidth(ell);
 
                 while (!l2.isEmpty() &&
-                       spr.textWidth(l2) + ellW > maxW)
+                       textSpr.textWidth(l2) + ellW > maxW)
                 {
                     l2.remove(l2.length() - 1);
                 }
@@ -77,34 +87,109 @@ namespace display
             }
         }
 
-        void showText(const char *text, const Icon *icon, int spinnerAngle = 0)
+        void formatMinutesSeconds(TickType_t ticks, char *out, size_t outSize)
         {
-            const int spinnerThickness = 8;
-            const int spriteMargin = spinnerThickness + 6;
-            const int spriteW = DISPLAY_WIDTH - (spriteMargin * 2);
-            const int lineH = spr.fontHeight();
+            unsigned long totalSeconds = pdTICKS_TO_MS(ticks) / 1000UL;
+            unsigned long minutes = totalSeconds / 60UL;
+            unsigned long seconds = totalSeconds % 60UL;
+
+            snprintf(out, outSize, "%lumin %02lus", minutes, seconds);
+        }
+
+        bool getContextText(TickType_t now, char *out, size_t outSize)
+        {
+            bool showName = ((now - context.fetchTick) / contextTextCycle) % 2 == 0;
+
+            if (context.ticksRemaining > 0)
+            {
+                if (showName)
+                {
+                    snprintf(out, outSize, "Turma: %s", context.lesson_name);
+                    return true;
+                }
+
+                char timeText[24];
+                formatMinutesSeconds(
+                    getRemainingTicks(now, context.ticksRemaining, context.fetchTick),
+                    timeText,
+                    sizeof(timeText));
+                snprintf(out, outSize, "Restam %s", timeText);
+                return true;
+            }
+
+            if (context.ticksForNext > 0)
+            {
+                if (showName)
+                {
+                    snprintf(out, outSize, "Proxima turma: %s", context.lesson_name);
+                    return true;
+                }
+
+                char timeText[24];
+                formatMinutesSeconds(
+                    getRemainingTicks(now, context.ticksForNext, context.fetchTick),
+                    timeText,
+                    sizeof(timeText));
+                snprintf(out, outSize, "Comeca em %s", timeText);
+                return true;
+            }
+
+            return false;
+        }
+
+        TextBlock buildTextBlock(
+            const char *text,
+            const Icon *icon,
+            int maxWidth,
+            int paddingX,
+            int paddingY)
+        {
+            int blockW = maxWidth;
+            if (blockW < 1)
+            {
+                blockW = 1;
+            }
+
+            int textMaxW = blockW - (paddingX * 2);
+            if (textMaxW < 1)
+            {
+                textMaxW = 1;
+            }
+
+            const int lineH = textSpr.fontHeight();
             const int spacing = 10;
 
             String l1;
             String l2;
-            splitTextTwoLines(text, l1, l2, spriteW);
+            splitTextTwoLines(text, l1, l2, textMaxW);
 
             const bool hasIcon = icon != nullptr;
             const bool hasLine2 = !l2.isEmpty();
+            const int lines = hasLine2 ? 2 : 1;
 
             int contentH =
                 (hasIcon ? icon->height + spacing : 0) +
-                lineH * (hasLine2 ? 2 : 1);
+                lineH * lines;
 
-            spr.createSprite(spriteW, static_cast<int16_t>(contentH));
+            int blockH = contentH + (paddingY * 2);
+            if (blockH < 1)
+            {
+                blockH = 1;
+            }
 
-            int y = 0;
+            textSpr.deleteSprite();
+            textSpr.createSprite(static_cast<int16_t>(blockW), static_cast<int16_t>(blockH));
+            textSpr.fillSprite(textBackgroundColor);
+            textSpr.setTextColor(TFT_WHITE, textBackgroundColor);
+            textSpr.setTextDatum(MC_DATUM);
+            textSpr.setFreeFont(&Determination);
 
-            // Ícone
+            int y = paddingY;
+
             if (hasIcon)
             {
-                spr.pushImage(
-                    (spriteW - icon->width) / 2,
+                textSpr.pushImage(
+                    (blockW - icon->width) / 2,
                     y,
                     icon->width,
                     icon->height,
@@ -112,20 +197,35 @@ namespace display
                 y += icon->height + spacing;
             }
 
-            int cx = spriteW / 2;
-            spr.drawString(l1, cx, y + lineH / 2);
+            int cx = blockW / 2;
+            textSpr.drawString(l1, cx, y + lineH / 2);
 
             if (hasLine2)
             {
-                spr.drawString(l2, cx, y + lineH + lineH / 2);
+                textSpr.drawString(l2, cx, y + lineH + lineH / 2);
             }
 
-            bgSpr.fillSprite(hasIcon ? icon->color : TFT_BLACK);
+            textSpr.setPivot(blockW / 2, blockH / 2);
+            return {
+                static_cast<int16_t>(blockW),
+                static_cast<int16_t>(blockH)};
+        }
+
+        void showText(const char *text, const Icon *icon, int spinnerAngle = 0)
+        {
+            const int spinnerThickness = 8;
+            const int screenMargin = spinnerThickness + 6;
+            const int maxBlockW = DISPLAY_WIDTH - (screenMargin * 2);
+
+            TextBlock block = buildTextBlock(text, icon, maxBlockW, 0, 0);
+            const bool hasIcon = icon != nullptr;
+
+            screenSpr.fillSprite(hasIcon ? icon->color : TFT_BLACK);
 
             if (spinnerAngle > 0)
             {
                 const int radius = DISPLAY_WIDTH / 2;
-                bgSpr.drawArc(
+                screenSpr.drawArc(
                     DISPLAY_WIDTH / 2,
                     DISPLAY_HEIGHT / 2,
                     radius,
@@ -136,27 +236,16 @@ namespace display
                     TFT_WHITE);
             }
 
-            if (hasIcon && icon->color != TFT_BLACK)
-            {
-                spr.pushToSprite(
-                    &bgSpr,
-                    spriteMargin,
-                    (DISPLAY_HEIGHT - contentH) / 2,
-                    TFT_BLACK);
-            }
-            else
-            {
-                spr.pushToSprite(
-                    &bgSpr,
-                    spriteMargin,
-                    (DISPLAY_HEIGHT - contentH) / 2);
-            }
+            textSpr.pushToSprite(
+                &screenSpr,
+                (DISPLAY_WIDTH - block.width) / 2,
+                (DISPLAY_HEIGHT - block.height) / 2,
+                textBackgroundColor);
 
-            spr.deleteSprite();
-            bgSpr.pushRotated(180);
+            screenSpr.pushRotated(180);
         }
 
-        bool showCamFrame()
+        bool drawFrame()
         {
             camera::FrameBuffer frame;
 
@@ -166,6 +255,7 @@ namespace display
             }
 
             bool converted = false;
+            screenSpr.fillSprite(TFT_BLACK);
 
             if (decoder.openRAM(frame.data, frame.len, drawMCUs))
             {
@@ -176,6 +266,55 @@ namespace display
 
             camera::releaseFrame(frame);
             return converted;
+        }
+
+        void drawCameraContextText(const char *text)
+        {
+            const int margin = 36;
+            const int paddingY = 8;
+            const int blockW = DISPLAY_WIDTH - (margin * 2);
+
+            TextBlock block = buildTextBlock(
+                text,
+                nullptr,
+                blockW,
+                0,
+                paddingY);
+
+            int panelX = (DISPLAY_WIDTH - block.width) / 2;
+            int panelY = (DISPLAY_HEIGHT - block.height) / 2;
+
+            screenSpr.fillRect(panelX, panelY, block.width, block.height, textBackgroundColor);
+
+            screenSpr.setPivot(DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2);
+            textSpr.pushRotated(&screenSpr, 180, textBackgroundColor);
+        }
+
+        void showLiveCam(TickType_t now)
+        {
+            char text[128];
+
+            if (!drawFrame())
+            {
+                return;
+            }
+
+            if (getContextText(now, text, sizeof(text)))
+            {
+                drawCameraContextText(text);
+            }
+
+            screenSpr.pushSprite(0, 0);
+        }
+
+        void showContextScreen(TickType_t now)
+        {
+            char text[128];
+
+            if (getContextText(now, text, sizeof(text)))
+            {
+                showText(text, nullptr);
+            }
         }
     } //
 
@@ -189,10 +328,14 @@ namespace display
 
     void configSprite()
     {
-        bgSpr.createSprite(DISPLAY_WIDTH, DISPLAY_HEIGHT);
-        spr.setTextColor(TFT_WHITE);
-        spr.setTextDatum(MC_DATUM);
-        spr.setFreeFont(&Determination);
+        screenSpr.createSprite(DISPLAY_WIDTH, DISPLAY_HEIGHT);
+        screenSpr.setPivot(DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2);
+        screenSpr.setTextColor(TFT_WHITE, TFT_BLACK);
+        screenSpr.setTextDatum(MC_DATUM);
+        screenSpr.setFreeFont(&Determination);
+        textSpr.setTextColor(TFT_WHITE);
+        textSpr.setTextDatum(MC_DATUM);
+        textSpr.setFreeFont(&Determination);
     }
 
     bool sendDisplayMessage(const char *text, unsigned long durationMs, const Icon *icon)
@@ -210,12 +353,17 @@ namespace display
         return xQueueSendToBack(messageQueue, &msg, 0) == pdPASS;
     }
 
+    bool isFullscreenMessageActive()
+    {
+        return fullscreenMessageActive;
+    }
+
     void TaskDisplayCode(void *pvParameters)
     {
         changeTaskCount(1);
 
         DisplayMessage msg{};
-        TickType_t overlayUntil = 0;
+        TickType_t messageUntil = 0;
 
         const TickType_t idleDelay = pdMS_TO_TICKS(1000);
         const TickType_t videoDelay = pdMS_TO_TICKS(66); // ~15 FPS
@@ -243,26 +391,41 @@ namespace display
                 msg = DisplayMessage{};
                 tft.fillScreen(TFT_BLACK);
                 currentDelay = idleDelay;
-                overlayUntil = 0;
+                messageUntil = 0;
+                fullscreenMessageActive = false;
                 idleTrigger = false;
             }
-            else if (overlayUntil > now && msg.duration > 0)
+            else if (messageUntil > now && msg.duration > 0)
             {
+                fullscreenMessageActive = true;
                 int spinnerAngle =
-                    360 - ((360UL * (overlayUntil - now)) / msg.duration);
+                    360 - ((360UL * (messageUntil - now)) / msg.duration);
                 showText(msg.text, msg.icon, spinnerAngle);
             }
             else if (xQueueReceive(messageQueue, &msg, 0) == pdPASS)
             {
                 //
-                overlayUntil = (msg.duration > 0) ? (now + msg.duration) : 0;
+                messageUntil = (msg.duration > 0) ? (now + msg.duration) : 0;
+                fullscreenMessageActive = msg.duration > 0;
                 showText(msg.text, msg.icon);
                 currentDelay = msgDelay;
             }
-            else if (checkState(SystemState::WORKING) || checkState(SystemState::WAITING_SERVER))
+            else if (checkState(SystemState::WAITING_SERVER) ||
+                     (checkState(SystemState::WORKING) && context.ticksRemaining > 0))
             {
-                showCamFrame();
+                fullscreenMessageActive = false;
+                showLiveCam(now);
                 currentDelay = videoDelay;
+            }
+            else if (checkState(SystemState::WORKING) && context.ticksForNext > 0)
+            {
+                fullscreenMessageActive = false;
+                showContextScreen(now);
+                currentDelay = msgDelay;
+            }
+            else
+            {
+                fullscreenMessageActive = false;
             }
 
             if (checkSleepEvent(currentDelay))
