@@ -73,7 +73,6 @@ namespace power
         switch (systemState)
         {
         case SystemState::BOOTING:
-        case SystemState::CONFIGURING:
         case SystemState::SLEEPING:
             return true;
 
@@ -89,7 +88,6 @@ namespace power
         pinMode(PWDN_GPIO_NUM, OUTPUT);
         pinMode(POSITIVE_FB_PIN, OUTPUT);
         digitalWrite(DISPLAY_ENABLE_PIN, HIGH);
-        pinMode(CONFIG_PIN, INPUT);
 
         attachInterrupt(digitalPinToInterrupt(PIR_PIN), handlePIRInterrupt, RISING);
     }

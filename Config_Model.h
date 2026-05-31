@@ -1,6 +1,6 @@
 #pragma once
 
-// ===== Valores Não Configuráveis por Bluetooth =====
+// ===== Valores fixos de build =====
 
 //  Sensor de presença (PIR)
 #define PIR_PIN 33
@@ -17,11 +17,6 @@
 #define POSITIVE_FB_PIN 3 // Liga o buzzer ativo e o LED indicador
 #define POSITIVE_FB_DURATION_MS 1000
 
-// Bluetooth
-#define CONFIG_PIN 4
-#define CONFIG_TIMEOUT_MS 180000
-#define BLUETOOTH_TOKEN ""
-
 //      WiFi
 #define WIFI_TIMEOUT_MS 10000
 
@@ -32,7 +27,7 @@
 //      Servidor REST + MQTT
 #define RESPONSE_WAIT_TIMEOUT_MS 5000 // Tempo de espera, por MQTT, de uma resposta após POST REST
 
-// ===== Valores-Padrão Configuráveis por Bluetooth =====
+// ===== Credenciais e endpoints fixos de build =====
 
 //      WiFi
 #define WIFI_SSID ""

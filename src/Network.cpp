@@ -3,7 +3,6 @@
 #include "Globals.h"
 #include "Power.h"
 #include "MQTT.h"
-#include "RuntimeConfig.h"
 #include "Config.h"
 #include "Camera.h"
 
@@ -34,12 +33,12 @@ namespace network
 
             HTTPClient http;
             http.setTimeout(REST_TIMEOUT_MS);
-            http.begin(String(runtimeConfig.restUrl) + String(runtimeConfig.restPostPath));
+            http.begin(String(REST_URL) + String(REST_POST_PATH));
 
             http.addHeader("Content-Type", "image/jpeg");
             http.addHeader("X-Device-Id", deviceId);
             http.addHeader("Connection", "close");
-            http.addHeader("X-Auth", runtimeConfig.restPass);
+            http.addHeader("X-Auth", REST_PASS);
 
             int resp = http.POST(frame.data, frame.len);
 
@@ -81,9 +80,9 @@ namespace network
 
             HTTPClient http;
             http.setTimeout(REST_TIMEOUT_MS);
-            http.begin(String(runtimeConfig.restUrl) + String(runtimeConfig.restFetchPath));
+            http.begin(String(REST_URL) + String(REST_FETCH_PATH));
             http.addHeader("X-Device-Id", deviceId);
-            http.addHeader("X-Auth", runtimeConfig.restPass);
+            http.addHeader("X-Auth", REST_PASS);
 
             sendDisplayMessage("Coletando informações da turma...", 0, &ICON_SERVER);
 
@@ -133,7 +132,7 @@ namespace network
         {
             using namespace display;
 
-            WiFi.begin(runtimeConfig.wifiSsid, runtimeConfig.wifiPass);
+            WiFi.begin(WIFI_SSID, WIFI_PASS);
 
             char msg[DISPLAY_MSG_MAX_LEN];
 

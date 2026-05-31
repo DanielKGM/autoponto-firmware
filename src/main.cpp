@@ -5,9 +5,6 @@
 #include "Display.h"
 #include "Network.h"
 #include "MQTT.h"
-#include "Bluetooth.h"
-
-#include "RuntimeConfig.h"
 
 const TickType_t ticksToSleep = pdMS_TO_TICKS(SLEEP_TIMEOUT_MS);
 const TickType_t ticksToIdle = pdMS_TO_TICKS(IDLE_TIMEOUT_MS);
@@ -16,21 +13,11 @@ volatile TickType_t lastSensorTick = xTaskGetTickCount();
 
 void loadID()
 {
-    Preferences prefs;
-    prefs.begin("system", false);
+    uint64_t mac = ESP.getEfuseMac();
 
-    if (prefs.getString("deviceId", deviceId, sizeof(deviceId)) == 0)
-    {
-        uint64_t mac = ESP.getEfuseMac();
-
-        snprintf(deviceId, sizeof(deviceId), "%04X%08X",
-                 (uint16_t)(mac >> 32),
-                 (uint32_t)mac);
-
-        prefs.putString("deviceId", deviceId);
-    }
-
-    prefs.end();
+    snprintf(deviceId, sizeof(deviceId), "%04X%08X",
+             (uint16_t)(mac >> 32),
+             (uint32_t)mac);
 }
 
 void setup()
@@ -40,10 +27,7 @@ void setup()
     setState(SystemState::BOOTING);
 
     loadID();
-    configs::ensureLoaded();
     power::configPins();
-
-    const bool enterConfigMode = digitalRead(CONFIG_PIN) == HIGH;
 
     display::configTFT();
     display::configSprite();
@@ -56,14 +40,6 @@ void setup()
         3,
         &TaskDisplay,
         APP_CPU_NUM);
-
-    if (enterConfigMode)
-    {
-        bluetooth::runConfigMode();
-        vTaskDelay(pdMS_TO_TICKS(500));
-        ESP.restart();
-        return;
-    }
 
     power::configSleep();
 

@@ -1,6 +1,5 @@
 #pragma once
 #include "Arduino.h"
-#include <Preferences.h>
 #define EVT_SLEEP (1 << 0)
 
 #define LESSON_NAME_LENGTH 256
@@ -8,7 +7,6 @@
 enum class SystemState
 {
     BOOTING,        // OFFLINE
-    CONFIGURING,    // OFFLINE
     NET_OFF,        // OFFLINE
     MQTT_OFF,       // OFFLINE
     WAITING_SERVER, // not logged
