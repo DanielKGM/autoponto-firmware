@@ -154,7 +154,7 @@ namespace display
             }
 
             spr.deleteSprite();
-            bgSpr.pushRotated(270);
+            bgSpr.pushRotated(180);
         }
 
         bool showCamFrame()
@@ -185,7 +185,7 @@ namespace display
         tft.init();
         tft.fillScreen(TFT_BLACK);
         tft.setPivot(DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2);
-        tft.setRotation(1);
+        tft.setRotation(0);
     }
 
     void configSprite()
