@@ -124,7 +124,7 @@ namespace network
             {
                 clearContext();
                 noClassContext = true;
-                sendDisplayMessage("Nenhuma turma próxima", 0, &ICON_SERVER);
+                sendDisplayMessage("Nenhuma turma proxima");
                 return false;
             }
 
