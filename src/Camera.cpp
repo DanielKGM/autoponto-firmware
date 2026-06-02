@@ -98,7 +98,11 @@ namespace camera
             esp_err_t err = esp_camera_init(&config);
 
             if (err == ESP_OK)
+            {
+                sensor_t *s = esp_camera_sensor_get();
+                s->set_vflip(s, 1);
                 return true;
+            }
 
             esp_camera_deinit();
             retry_count++;

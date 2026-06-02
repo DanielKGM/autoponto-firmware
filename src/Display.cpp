@@ -104,7 +104,7 @@ namespace display
             {
                 if (showName)
                 {
-                    snprintf(out, outSize, "Turma: %s", context.lesson_name);
+                    snprintf(out, outSize, "Chamada: %s", context.lesson_name);
                     return true;
                 }
 
@@ -130,7 +130,7 @@ namespace display
                     getRemainingTicks(now, context.ticksForNext, context.fetchTick),
                     timeText,
                     sizeof(timeText));
-                snprintf(out, outSize, "Comeca em %s", timeText);
+                snprintf(out, outSize, "Chamada em %s", timeText);
                 return true;
             }
 
@@ -323,7 +323,6 @@ namespace display
         tft.init();
         tft.fillScreen(TFT_BLACK);
         tft.setPivot(DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2);
-        tft.setRotation(0);
     }
 
     void configSprite()

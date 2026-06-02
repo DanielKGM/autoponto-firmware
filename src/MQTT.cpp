@@ -138,7 +138,7 @@ namespace mqtt
 
                 if (doc["auth"] && !power::checkIdle())
                 {
-                    display::sendDisplayMessage(doc["msg"] | "", 5000, &display::ICON_HAPPY);
+                    display::sendDisplayMessage(doc["msg"] | "", 3000, &display::ICON_HAPPY);
                     power::buzzerTriggered = true;
                 }
             }

@@ -12,6 +12,8 @@ namespace network
 
     namespace
     {
+        bool noClassContext = false;
+
         bool sendFrame()
         {
             if (!isConnected())
@@ -84,7 +86,10 @@ namespace network
             http.addHeader("X-Device-Id", deviceId);
             http.addHeader("X-Auth", REST_PASS);
 
-            sendDisplayMessage("Coletando informações da turma...", 0, &ICON_SERVER);
+            if (!noClassContext)
+            {
+                sendDisplayMessage("Coletando informações da turma...", 0, &ICON_SERVER);
+            }
 
             int resp = http.GET();
 
@@ -117,14 +122,13 @@ namespace network
 
             if (msForNext == 0 && msRemaining == 0)
             {
-                context.lesson_name[0] = '\0';
-                context.ticksForNext = 0;
-                context.ticksRemaining = 0;
-                context.fetchTick = 0;
-                setState(SystemState::FETCHING);
+                clearContext();
+                noClassContext = true;
+                sendDisplayMessage("Nenhuma turma próxima", 0, &ICON_SERVER);
                 return false;
             }
 
+            noClassContext = false;
             strlcpy(context.lesson_name, doc["lesson_name"] | "", sizeof(context.lesson_name));
             context.ticksForNext = pdMS_TO_TICKS(msForNext);
             context.ticksRemaining = pdMS_TO_TICKS(msRemaining);
