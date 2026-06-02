@@ -75,7 +75,7 @@ namespace network
             }
 
             if (context.lesson_name[0] != '\0' &&
-                (context.ticksForNext > 0 || context.ticksRemaining > 0))
+                (context.msForNext > 0 || context.msRemaining > 0))
             {
                 return true;
             }
@@ -116,8 +116,8 @@ namespace network
                 return false;
             }
 
-            uint32_t msForNext = doc["msForNext"] | 0;
-            uint32_t msRemaining = doc["msRemaining"] | 0;
+            uint64_t msForNext = doc["msForNext"].as<uint64_t>();
+            uint64_t msRemaining = doc["msRemaining"].as<uint64_t>();
             http.end();
 
             if (msForNext == 0 && msRemaining == 0)
@@ -130,8 +130,8 @@ namespace network
 
             noClassContext = false;
             strlcpy(context.lesson_name, doc["lesson_name"] | "", sizeof(context.lesson_name));
-            context.ticksForNext = pdMS_TO_TICKS(msForNext);
-            context.ticksRemaining = pdMS_TO_TICKS(msRemaining);
+            context.msForNext = msForNext;
+            context.msRemaining = msRemaining;
             context.fetchTick = xTaskGetTickCount();
 
             mqtt::publish(mqtt::topicLogs, "{\"synced\":true}", true);
@@ -240,7 +240,7 @@ namespace network
             bool waitTimeOut = lastRequestInterval > waitInterval;
             bool shouldSendFrame =
                 lastRequestInterval > reqInterval &&
-                context.ticksRemaining > 0 &&
+                context.msRemaining > 0 &&
                 !display::isFullscreenMessageActive();
 
             if (checkState(SystemState::FETCHING) &&

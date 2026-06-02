@@ -18,8 +18,8 @@ enum class SystemState
 struct AttendanceContext
 {
     char lesson_name[LESSON_NAME_LENGTH];
-    TickType_t ticksForNext;
-    TickType_t ticksRemaining;
+    uint64_t msForNext;
+    uint64_t msRemaining;
     TickType_t fetchTick;
 };
 
@@ -38,5 +38,5 @@ short int checkTaskCount();
 void setState(SystemState newState);
 bool checkState(SystemState state);
 bool checkSleepEvent(TickType_t waitInterval);
-TickType_t getRemainingTicks(TickType_t now, TickType_t totalTicks, TickType_t startTick);
+uint64_t getRemainingMs(TickType_t now, uint64_t totalMs, TickType_t startTick);
 const char *stateStr(SystemState state);

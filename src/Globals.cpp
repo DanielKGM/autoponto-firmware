@@ -19,8 +19,8 @@ void clearContext()
 {
     context.fetchTick = 0;
     context.lesson_name[0] = '\0';
-    context.ticksForNext = 0;
-    context.ticksRemaining = 0;
+    context.msForNext = 0;
+    context.msRemaining = 0;
     setState(SystemState::FETCHING);
 }
 
@@ -67,10 +67,10 @@ bool checkSleepEvent(TickType_t waitInterval)
            EVT_SLEEP;
 }
 
-TickType_t getRemainingTicks(TickType_t now, TickType_t totalTicks, TickType_t startTick)
+uint64_t getRemainingMs(TickType_t now, uint64_t totalMs, TickType_t startTick)
 {
-    TickType_t elapsed = now - startTick;
-    return elapsed >= totalTicks ? 0 : totalTicks - elapsed;
+    uint64_t elapsedMs = (static_cast<uint64_t>(now - startTick) * 1000ULL) / configTICK_RATE_HZ;
+    return elapsedMs >= totalMs ? 0 : totalMs - elapsedMs;
 }
 
 const char *stateStr(SystemState state)

@@ -63,8 +63,8 @@ namespace mqtt
             JsonObject ctx = doc["context"].to<JsonObject>();
 
             ctx["lesson"] = context.lesson_name;
-            ctx["remaining_ms"] = pdTICKS_TO_MS(context.ticksRemaining);
-            ctx["next_ms"] = pdTICKS_TO_MS(context.ticksForNext);
+            ctx["remaining_ms"] = context.msRemaining;
+            ctx["next_ms"] = context.msForNext;
 
             if (doc.overflowed())
             {

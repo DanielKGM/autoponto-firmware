@@ -87,11 +87,11 @@ namespace display
             }
         }
 
-        void formatMinutesSeconds(TickType_t ticks, char *out, size_t outSize)
+        void formatMinutesSeconds(uint64_t ms, char *out, size_t outSize)
         {
-            unsigned long totalSeconds = pdTICKS_TO_MS(ticks) / 1000UL;
-            unsigned long minutes = totalSeconds / 60UL;
-            unsigned long seconds = totalSeconds % 60UL;
+            uint64_t totalSeconds = ms / 1000ULL;
+            unsigned long minutes = static_cast<unsigned long>(totalSeconds / 60ULL);
+            unsigned long seconds = static_cast<unsigned long>(totalSeconds % 60ULL);
 
             snprintf(out, outSize, "%lumin %02lus", minutes, seconds);
         }
@@ -100,7 +100,7 @@ namespace display
         {
             bool showName = ((now - context.fetchTick) / contextTextCycle) % 2 == 0;
 
-            if (context.ticksRemaining > 0)
+            if (context.msRemaining > 0)
             {
                 if (showName)
                 {
@@ -110,14 +110,14 @@ namespace display
 
                 char timeText[24];
                 formatMinutesSeconds(
-                    getRemainingTicks(now, context.ticksRemaining, context.fetchTick),
+                    getRemainingMs(now, context.msRemaining, context.fetchTick),
                     timeText,
                     sizeof(timeText));
                 snprintf(out, outSize, "Restam %s", timeText);
                 return true;
             }
 
-            if (context.ticksForNext > 0)
+            if (context.msForNext > 0)
             {
                 if (showName)
                 {
@@ -127,7 +127,7 @@ namespace display
 
                 char timeText[24];
                 formatMinutesSeconds(
-                    getRemainingTicks(now, context.ticksForNext, context.fetchTick),
+                    getRemainingMs(now, context.msForNext, context.fetchTick),
                     timeText,
                     sizeof(timeText));
                 snprintf(out, outSize, "Chamada em %s", timeText);
@@ -410,13 +410,13 @@ namespace display
                 currentDelay = msgDelay;
             }
             else if (checkState(SystemState::WAITING_SERVER) ||
-                     (checkState(SystemState::WORKING) && context.ticksRemaining > 0))
+                     (checkState(SystemState::WORKING) && context.msRemaining > 0))
             {
                 fullscreenMessageActive = false;
                 showLiveCam(now);
                 currentDelay = videoDelay;
             }
-            else if (checkState(SystemState::WORKING) && context.ticksForNext > 0)
+            else if (checkState(SystemState::WORKING) && context.msForNext > 0)
             {
                 fullscreenMessageActive = false;
                 showContextScreen(now);
