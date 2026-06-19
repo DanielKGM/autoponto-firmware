@@ -9,10 +9,11 @@ namespace mqtt
 {
     char topicCmd[MQTT_TOPIC_SIZE];
     char topicLogs[MQTT_TOPIC_SIZE];
-    char topicStatus[MQTT_TOPIC_SIZE];
 
     namespace
     {
+        constexpr const char *STATUS_OFFLINE_PAYLOAD = "{\"kind\":\"status\",\"status\":\"offline\"}";
+
         struct MqttMsg
         {
             char topic[MQTT_TOPIC_SIZE];
@@ -30,41 +31,26 @@ namespace mqtt
 
             snprintf(topicLogs, sizeof(topicLogs),
                      "log/%s", deviceId);
-
-            snprintf(topicStatus, sizeof(topicStatus),
-                     "sts/%s", deviceId);
         }
 
         void publishSystemStats()
         {
             JsonDocument doc;
+            TickType_t nowTick = xTaskGetTickCount();
 
-            doc["id"] = deviceId;
-            doc["state"] = stateStr(systemState);
-            doc["cpu_freq"] = ESP.getCpuFreqMHz();
-            doc["rssi"] = network::getRSSI();
+            doc["kind"] = "metrics";
             doc["heap_free"] = ESP.getFreeHeap();
-            doc["heap_min"] = ESP.getMinFreeHeap();
+            doc["psram_free"] = psramFound() ? ESP.getFreePsram() : 0;
             doc["now_ms"] = esp_timer_get_time() / 1000ULL;
-
-            if (psramFound())
-            {
-                doc["psram_free"] = ESP.getFreePsram();
-                doc["psram_total"] = ESP.getPsramSize();
-            }
-
-            JsonObject stk = doc["stacks"].to<JsonObject>();
-
-            stk["stk_disp"] = TaskDisplay ? uxTaskGetStackHighWaterMark(TaskDisplay) : 0;
-            stk["stk_net"] = TaskNetwork ? uxTaskGetStackHighWaterMark(TaskNetwork) : 0;
-            stk["stk_mqtt"] = TaskMqtt ? uxTaskGetStackHighWaterMark(TaskMqtt) : 0;
-            stk["stk_cam"] = TaskCamera ? uxTaskGetStackHighWaterMark(TaskCamera) : 0;
-
-            JsonObject ctx = doc["context"].to<JsonObject>();
-
-            ctx["lesson"] = context.lesson_name;
-            ctx["remaining_ms"] = context.msRemaining;
-            ctx["next_ms"] = context.msForNext;
+            doc["rssi"] = network::getRSSI();
+            doc["heap_min"] = ESP.getMinFreeHeap();
+            doc["lesson"] = context.lesson_name;
+            doc["remaining_ms"] = context.msRemaining > 0
+                                      ? getRemainingMs(nowTick, context.msRemaining, context.fetchTick)
+                                      : 0;
+            doc["next_ms"] = context.msForNext > 0
+                                 ? getRemainingMs(nowTick, context.msForNext, context.fetchTick)
+                                 : 0;
 
             if (doc.overflowed())
             {
@@ -102,10 +88,10 @@ namespace mqtt
                 deviceId,
                 MQTT_USER,
                 MQTT_PASS,
-                topicStatus,
+                topicLogs,
                 1,
                 true,
-                "OFFLINE",
+                STATUS_OFFLINE_PAYLOAD,
                 true);
 
             if (!ok)
@@ -125,11 +111,6 @@ namespace mqtt
             if (deserializeJson(doc, payload, length))
             {
                 return;
-            }
-
-            if (doc["stats"] == true)
-            {
-                publishSystemStats();
             }
 
             if (doc["auth"].is<bool>() && checkState(SystemState::WAITING_SERVER))
@@ -200,6 +181,7 @@ namespace mqtt
         }
 
         MqttMsg lastMsg{};
+        TickType_t lastLogTick = 0;
 
         while (true)
         {
@@ -226,6 +208,13 @@ namespace mqtt
 
                 mqtt.loop();
                 continue;
+            }
+
+            TickType_t now = xTaskGetTickCount();
+            if ((now - lastLogTick) >= pdMS_TO_TICKS(MQTT_LOG_INTERVAL_MS))
+            {
+                lastLogTick = now;
+                publishSystemStats();
             }
 
             if (xQueueReceive(mqttQueue, &lastMsg, 0) == pdTRUE)

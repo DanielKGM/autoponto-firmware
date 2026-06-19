@@ -2,7 +2,6 @@
 #include "Display.h"
 #include "Globals.h"
 #include "Power.h"
-#include "MQTT.h"
 #include "Config.h"
 #include "Camera.h"
 
@@ -133,8 +132,6 @@ namespace network
             context.msForNext = msForNext;
             context.msRemaining = msRemaining;
             context.fetchTick = xTaskGetTickCount();
-
-            mqtt::publish(mqtt::topicLogs, "{\"synced\":true}", true);
 
             return true;
         }

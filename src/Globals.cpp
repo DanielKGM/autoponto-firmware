@@ -48,7 +48,7 @@ void setState(SystemState newState)
         return;
     }
 
-    mqtt::publish(mqtt::topicStatus, stateStr(newState), true);
+    mqtt::publish(mqtt::topicLogs, "{\"kind\":\"status\",\"status\":\"working\"}", true);
 }
 
 bool checkState(SystemState state)

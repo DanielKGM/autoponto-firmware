@@ -9,7 +9,6 @@ namespace mqtt
 {
     extern char topicCmd[MQTT_TOPIC_SIZE];
     extern char topicLogs[MQTT_TOPIC_SIZE];
-    extern char topicStatus[MQTT_TOPIC_SIZE];
 
     bool isConnected();
     void publish(const char *topic, const char *payload, bool retain = false);

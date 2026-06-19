@@ -96,6 +96,7 @@ void loop()
     {
         changeTriggeredFlag(false);
         lastSensorTick = now;
+        mqtt::publish(mqtt::topicLogs, "{\"kind\":\"pir\",\"presenca\":true}", false);
         exitIdle();
     }
 
