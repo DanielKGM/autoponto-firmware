@@ -41,7 +41,9 @@ namespace mqtt
             doc["kind"] = "metrics";
             doc["heap_free"] = ESP.getFreeHeap();
             doc["psram_free"] = psramFound() ? ESP.getFreePsram() : 0;
-            doc["now_ms"] = esp_timer_get_time() / 1000ULL;
+            doc["now_ms"] = context.fetchTick > 0
+                                ? (static_cast<uint64_t>(nowTick - context.fetchTick) * 1000ULL) / configTICK_RATE_HZ
+                                : 0;
             doc["rssi"] = network::getRSSI();
             doc["heap_min"] = ESP.getMinFreeHeap();
             doc["lesson"] = context.lesson_name;
