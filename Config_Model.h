@@ -26,7 +26,7 @@
 
 //      Servidor REST + MQTT
 #define RESPONSE_WAIT_TIMEOUT_MS 5000 // Tempo de espera, por MQTT, de uma resposta após POST REST
-static constexpr unsigned long MQTT_LOG_INTERVAL_MS = 60000;
+#define MQTT_LOG_INTERVAL_MS 60000
 
 // ===== Credenciais e endpoints fixos de build =====
 

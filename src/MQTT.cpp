@@ -172,6 +172,7 @@ namespace mqtt
         configMqtt();
 
         const TickType_t delay = pdMS_TO_TICKS(100);
+        const TickType_t metricsInterval = pdMS_TO_TICKS(MQTT_LOG_INTERVAL_MS);
 
         // wait boot and first connection
         while (checkState(SystemState::BOOTING) || checkState(SystemState::NET_OFF))
@@ -213,7 +214,7 @@ namespace mqtt
             }
 
             TickType_t now = xTaskGetTickCount();
-            if ((now - lastLogTick) >= pdMS_TO_TICKS(MQTT_LOG_INTERVAL_MS))
+            if ((now - lastLogTick) >= metricsInterval)
             {
                 lastLogTick = now;
                 publishSystemStats();
