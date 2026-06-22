@@ -4,7 +4,17 @@
 volatile SystemState systemState;
 portMUX_TYPE tasksAliveMux = portMUX_INITIALIZER_UNLOCKED;
 portMUX_TYPE systemStateMux = portMUX_INITIALIZER_UNLOCKED;
+portMUX_TYPE metricsMux = portMUX_INITIALIZER_UNLOCKED;
 volatile short int tasksAlive = 0;
+
+struct TaskRuntimeStats
+{
+    uint64_t totalUs;
+    uint32_t samples;
+};
+
+TaskRuntimeStats taskRuntimeStats[TASK_METRIC_COUNT] = {};
+uint32_t restPostMaxMs = 0;
 
 // extern
 char deviceId[13];
@@ -42,13 +52,23 @@ void setState(SystemState newState)
     systemState = newState;
     portEXIT_CRITICAL(&systemStateMux);
 
-    // only publish meaningful states
-    if (newState < SystemState::WORKING)
+    switch (newState)
     {
+    case SystemState::WORKING:
+        mqtt::publishStatus("working");
+        break;
+
+    case SystemState::FETCHING:
+        mqtt::publishStatus("fetching");
+        break;
+
+    case SystemState::SLEEPING:
+        mqtt::publishStatus("sleep");
+        break;
+
+    default:
         return;
     }
-
-    mqtt::publish(mqtt::topicLogs, "{\"kind\":\"status\",\"status\":\"working\"}", true);
 }
 
 bool checkState(SystemState state)
@@ -88,4 +108,50 @@ const char *stateStr(SystemState state)
     default:
         return "UNKNOWN";
     }
+}
+
+void recordTaskRuntime(TaskMetric task, uint32_t durationUs)
+{
+    uint8_t index = static_cast<uint8_t>(task);
+    if (index >= TASK_METRIC_COUNT)
+    {
+        return;
+    }
+
+    portENTER_CRITICAL(&metricsMux);
+    taskRuntimeStats[index].totalUs += durationUs;
+    taskRuntimeStats[index].samples++;
+    portEXIT_CRITICAL(&metricsMux);
+}
+
+void snapshotAndResetTaskAverages(uint32_t averagesUs[TASK_METRIC_COUNT])
+{
+    portENTER_CRITICAL(&metricsMux);
+    for (uint8_t i = 0; i < TASK_METRIC_COUNT; i++)
+    {
+        averagesUs[i] = taskRuntimeStats[i].samples > 0
+                            ? taskRuntimeStats[i].totalUs / taskRuntimeStats[i].samples
+                            : 0;
+        taskRuntimeStats[i] = {};
+    }
+    portEXIT_CRITICAL(&metricsMux);
+}
+
+void recordRestPostDuration(uint32_t durationMs)
+{
+    portENTER_CRITICAL(&metricsMux);
+    if (durationMs > restPostMaxMs)
+    {
+        restPostMaxMs = durationMs;
+    }
+    portEXIT_CRITICAL(&metricsMux);
+}
+
+uint32_t snapshotAndResetRestPostMax()
+{
+    portENTER_CRITICAL(&metricsMux);
+    uint32_t value = restPostMaxMs;
+    restPostMaxMs = 0;
+    portEXIT_CRITICAL(&metricsMux);
+    return value;
 }

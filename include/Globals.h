@@ -3,6 +3,7 @@
 #define EVT_SLEEP (1 << 0)
 
 #define LESSON_NAME_LENGTH 256
+#define TASK_METRIC_COUNT 5
 
 enum class SystemState
 {
@@ -13,6 +14,15 @@ enum class SystemState
     WORKING,
     FETCHING,
     SLEEPING
+};
+
+enum class TaskMetric : uint8_t
+{
+    LOOP_TASK,
+    MQTT_TASK,
+    NETWORK_TASK,
+    CAMERA_TASK,
+    DISPLAY_TASK
 };
 
 struct AttendanceContext
@@ -40,3 +50,7 @@ bool checkState(SystemState state);
 bool checkSleepEvent(TickType_t waitInterval);
 uint64_t getRemainingMs(TickType_t now, uint64_t totalMs, TickType_t startTick);
 const char *stateStr(SystemState state);
+void recordTaskRuntime(TaskMetric task, uint32_t durationUs);
+void snapshotAndResetTaskAverages(uint32_t averagesUs[TASK_METRIC_COUNT]);
+void recordRestPostDuration(uint32_t durationMs);
+uint32_t snapshotAndResetRestPostMax();

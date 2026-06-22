@@ -50,9 +50,8 @@ namespace power
         }
 
         digitalWrite(DISPLAY_ENABLE_PIN, LOW);
-        setCpuFrequencyMhz(160);
-        esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
         idleFlag = true;
+        mqtt::publishStatus("idle");
     }
 
     void exitIdle()
@@ -63,9 +62,17 @@ namespace power
         }
 
         idleFlag = false;
-        setCpuFrequencyMhz(240);
         digitalWrite(DISPLAY_ENABLE_PIN, HIGH);
         esp_wifi_set_ps(WIFI_PS_NONE);
+
+        if (checkState(SystemState::FETCHING))
+        {
+            mqtt::publishStatus("fetching");
+        }
+        else if (checkState(SystemState::WORKING))
+        {
+            mqtt::publishStatus("working");
+        }
     }
 
     bool isBlockingIdle()
@@ -86,8 +93,10 @@ namespace power
         pinMode(DISPLAY_ENABLE_PIN, OUTPUT);
         pinMode(PIR_PIN, INPUT);
         pinMode(PWDN_GPIO_NUM, OUTPUT);
+        digitalWrite(POSITIVE_FB_PIN, LOW);
         pinMode(POSITIVE_FB_PIN, OUTPUT);
         digitalWrite(DISPLAY_ENABLE_PIN, HIGH);
+        digitalWrite(POSITIVE_FB_PIN, LOW);
 
         attachInterrupt(digitalPinToInterrupt(PIR_PIN), handlePIRInterrupt, RISING);
     }
@@ -102,8 +111,9 @@ namespace power
     void triggerSleepEvent()
     {
         setState(SystemState::SLEEPING);
-        xEventGroupSetBits(systemEvents, EVT_SLEEP);
         vTaskDelay(pdMS_TO_TICKS(500));
+        xEventGroupSetBits(systemEvents, EVT_SLEEP);
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 
     __attribute__((noreturn)) void sleep()

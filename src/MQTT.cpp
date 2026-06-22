@@ -4,6 +4,7 @@
 #include "Display.h"
 #include "Power.h"
 #include "Config.h"
+#include "esp_timer.h"
 
 namespace mqtt
 {
@@ -23,6 +24,7 @@ namespace mqtt
 
         PubSubClient mqtt;
         QueueHandle_t mqttQueue = xQueueCreate(5, sizeof(MqttMsg));
+        char lastStatus[16] = "";
 
         void buildTopics()
         {
@@ -36,23 +38,25 @@ namespace mqtt
         void publishSystemStats()
         {
             JsonDocument doc;
-            TickType_t nowTick = xTaskGetTickCount();
+            uint32_t averagesUs[TASK_METRIC_COUNT] = {};
+            snapshotAndResetTaskAverages(averagesUs);
 
             doc["kind"] = "metrics";
             doc["heap_free"] = ESP.getFreeHeap();
-            doc["psram_free"] = psramFound() ? ESP.getFreePsram() : 0;
-            doc["now_ms"] = context.fetchTick > 0
-                                ? (static_cast<uint64_t>(nowTick - context.fetchTick) * 1000ULL) / configTICK_RATE_HZ
-                                : 0;
-            doc["rssi"] = network::getRSSI();
             doc["heap_min"] = ESP.getMinFreeHeap();
-            doc["lesson"] = context.lesson_name;
-            doc["remaining_ms"] = context.msRemaining > 0
-                                      ? getRemainingMs(nowTick, context.msRemaining, context.fetchTick)
-                                      : 0;
-            doc["next_ms"] = context.msForNext > 0
-                                 ? getRemainingMs(nowTick, context.msForNext, context.fetchTick)
-                                 : 0;
+            doc["heap_max"] = ESP.getMaxAllocHeap();
+            doc["psram_free"] = psramFound() ? ESP.getFreePsram() : 0;
+            doc["psram_min"] = psramFound() ? ESP.getMinFreePsram() : 0;
+            doc["psram_max"] = psramFound() ? ESP.getMaxAllocPsram() : 0;
+            doc["rssi"] = network::getRSSI();
+            doc["post_max_ms"] = snapshotAndResetRestPostMax();
+
+            JsonObject avg = doc["avg_us"].to<JsonObject>();
+            avg["loop"] = averagesUs[static_cast<uint8_t>(TaskMetric::LOOP_TASK)];
+            avg["mqtt"] = averagesUs[static_cast<uint8_t>(TaskMetric::MQTT_TASK)];
+            avg["network"] = averagesUs[static_cast<uint8_t>(TaskMetric::NETWORK_TASK)];
+            avg["camera"] = averagesUs[static_cast<uint8_t>(TaskMetric::CAMERA_TASK)];
+            avg["display"] = averagesUs[static_cast<uint8_t>(TaskMetric::DISPLAY_TASK)];
 
             if (doc.overflowed())
             {
@@ -73,6 +77,31 @@ namespace mqtt
             msg.retain = false;
 
             xQueueSend(mqttQueue, &msg, 0);
+        }
+
+        bool enqueue(const char *topic, const char *payload, bool retain)
+        {
+            MqttMsg msg{};
+            strcpy(msg.topic, topic);
+            strcpy(msg.payload, payload);
+            msg.retain = retain;
+
+            return xQueueSend(mqttQueue, &msg, 0) == pdPASS;
+        }
+
+        void drainQueue()
+        {
+            if (!isConnected())
+            {
+                return;
+            }
+
+            MqttMsg msg{};
+            while (xQueueReceive(mqttQueue, &msg, 0) == pdTRUE)
+            {
+                mqtt.publish(msg.topic, msg.payload, msg.retain);
+                mqtt.loop();
+            }
         }
 
         bool connMqtt()
@@ -102,6 +131,7 @@ namespace mqtt
                 return false;
             }
 
+            lastStatus[0] = '\0';
             mqtt.subscribe(topicCmd, 1);
             return true;
         }
@@ -157,12 +187,33 @@ namespace mqtt
             return;
         }
 
-        MqttMsg msg{};
-        strcpy(msg.topic, topic);
-        strcpy(msg.payload, payload);
-        msg.retain = retain;
+        enqueue(topic, payload, retain);
+    }
 
-        xQueueSend(mqttQueue, &msg, 0);
+    bool publishStatus(const char *status, bool force)
+    {
+        if (!isConnected())
+        {
+            return false;
+        }
+
+        if (!force && strcmp(lastStatus, status) == 0)
+        {
+            return true;
+        }
+
+        char payload[64];
+        snprintf(payload, sizeof(payload),
+                 "{\"kind\":\"status\",\"status\":\"%s\"}",
+                 status);
+
+        if (!enqueue(topicLogs, payload, true))
+        {
+            return false;
+        }
+
+        strlcpy(lastStatus, status, sizeof(lastStatus));
+        return true;
     }
 
     void TaskMqttCode(void *pvParameters)
@@ -171,7 +222,7 @@ namespace mqtt
 
         configMqtt();
 
-        const TickType_t delay = pdMS_TO_TICKS(100);
+        const TickType_t delay = pdMS_TO_TICKS(99);
         const TickType_t metricsInterval = pdMS_TO_TICKS(MQTT_LOG_INTERVAL_MS);
 
         // wait boot and first connection
@@ -183,19 +234,22 @@ namespace mqtt
             }
         }
 
-        MqttMsg lastMsg{};
         TickType_t lastLogTick = 0;
 
         while (true)
         {
             if (checkSleepEvent(delay))
             {
+                drainQueue();
                 break;
             }
+
+            int64_t cycleStart = esp_timer_get_time();
 
             if (checkState(SystemState::NET_OFF))
             {
                 mqtt.loop();
+                recordTaskRuntime(TaskMetric::MQTT_TASK, static_cast<uint32_t>(esp_timer_get_time() - cycleStart));
                 continue;
             }
 
@@ -210,6 +264,7 @@ namespace mqtt
                 }
 
                 mqtt.loop();
+                recordTaskRuntime(TaskMetric::MQTT_TASK, static_cast<uint32_t>(esp_timer_get_time() - cycleStart));
                 continue;
             }
 
@@ -220,12 +275,10 @@ namespace mqtt
                 publishSystemStats();
             }
 
-            if (xQueueReceive(mqttQueue, &lastMsg, 0) == pdTRUE)
-            {
-                mqtt.publish(lastMsg.topic, lastMsg.payload, lastMsg.retain);
-            }
+            drainQueue();
 
             mqtt.loop();
+            recordTaskRuntime(TaskMetric::MQTT_TASK, static_cast<uint32_t>(esp_timer_get_time() - cycleStart));
         }
 
         changeTaskCount(-1);

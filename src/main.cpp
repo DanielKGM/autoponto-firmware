@@ -5,10 +5,11 @@
 #include "Display.h"
 #include "Network.h"
 #include "MQTT.h"
+#include "esp_timer.h"
 
 const TickType_t ticksToSleep = pdMS_TO_TICKS(SLEEP_TIMEOUT_MS);
 const TickType_t ticksToIdle = pdMS_TO_TICKS(IDLE_TIMEOUT_MS);
-const TickType_t loopDelay = pdMS_TO_TICKS(100);
+const TickType_t loopDelay = pdMS_TO_TICKS(99);
 volatile TickType_t lastSensorTick = xTaskGetTickCount();
 
 void loadID()
@@ -24,10 +25,10 @@ void setup()
 {
     WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
 
+    power::configPins();
     setState(SystemState::BOOTING);
 
     loadID();
-    power::configPins();
 
     display::configTFT();
     display::configSprite();
@@ -79,6 +80,7 @@ void setup()
 void loop()
 {
     using namespace power;
+    int64_t cycleStart = esp_timer_get_time();
     TickType_t now = xTaskGetTickCount();
 
     if (context.msRemaining > 0 &&
@@ -115,6 +117,8 @@ void loop()
     {
         triggerSleepEvent();
     }
+
+    recordTaskRuntime(TaskMetric::LOOP_TASK, static_cast<uint32_t>(esp_timer_get_time() - cycleStart));
 
     if (checkSleepEvent(loopDelay) && checkTaskCount() == 0 && checkState(SystemState::SLEEPING))
     {

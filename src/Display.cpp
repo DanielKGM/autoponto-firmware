@@ -5,6 +5,7 @@
 #include "Power.h"
 #include "Font.h"
 #include "Camera.h"
+#include "esp_timer.h"
 
 namespace display
 {
@@ -364,9 +365,9 @@ namespace display
         DisplayMessage msg{};
         TickType_t messageUntil = 0;
 
-        const TickType_t idleDelay = pdMS_TO_TICKS(1000);
+        const TickType_t idleDelay = pdMS_TO_TICKS(990);
         const TickType_t videoDelay = pdMS_TO_TICKS(66); // ~15 FPS
-        const TickType_t msgDelay = pdMS_TO_TICKS(100);
+        const TickType_t msgDelay = pdMS_TO_TICKS(99);
 
         TickType_t currentDelay = msgDelay;
         // only trigger idle actions once
@@ -374,6 +375,7 @@ namespace display
 
         while (true)
         {
+            int64_t cycleStart = esp_timer_get_time();
             TickType_t now = xTaskGetTickCount();
 
             //
@@ -426,6 +428,8 @@ namespace display
             {
                 fullscreenMessageActive = false;
             }
+
+            recordTaskRuntime(TaskMetric::DISPLAY_TASK, static_cast<uint32_t>(esp_timer_get_time() - cycleStart));
 
             if (checkSleepEvent(currentDelay))
             {

@@ -4,6 +4,7 @@
 #include "Power.h"
 #include "Config.h"
 #include "Camera.h"
+#include "esp_timer.h"
 
 namespace network
 {
@@ -41,6 +42,7 @@ namespace network
             http.addHeader("Connection", "close");
             http.addHeader("X-Auth", REST_PASS);
 
+            int64_t postStart = esp_timer_get_time();
             int resp = http.POST(frame.data, frame.len);
 
             if (resp != HTTP_CODE_OK)
@@ -48,6 +50,8 @@ namespace network
                 vTaskDelay(pdMS_TO_TICKS(200));
                 resp = http.POST(frame.data, frame.len);
             }
+
+            recordRestPostDuration(static_cast<uint32_t>((esp_timer_get_time() - postStart) / 1000));
 
             http.end();
             camera::releaseFrame(frame);
@@ -202,7 +206,7 @@ namespace network
             setState(SystemState::MQTT_OFF);
         }
 
-        const TickType_t delay = pdMS_TO_TICKS(100);
+        const TickType_t delay = pdMS_TO_TICKS(99);
         const TickType_t waitInterval = pdMS_TO_TICKS(RESPONSE_WAIT_TIMEOUT_MS);
         const TickType_t reqInterval = pdMS_TO_TICKS(REST_POST_INTERVAL_MS);
 
@@ -219,6 +223,7 @@ namespace network
                 break;
             }
 
+            int64_t cycleStart = esp_timer_get_time();
             TickType_t now = xTaskGetTickCount();
 
             if (!isConnected())
@@ -230,6 +235,7 @@ namespace network
                     setState(SystemState::MQTT_OFF);
                 }
 
+                recordTaskRuntime(TaskMetric::NETWORK_TASK, static_cast<uint32_t>(esp_timer_get_time() - cycleStart));
                 continue;
             }
 
@@ -260,6 +266,8 @@ namespace network
                 lastReqTick = now;
                 sendFrame();
             }
+
+            recordTaskRuntime(TaskMetric::NETWORK_TASK, static_cast<uint32_t>(esp_timer_get_time() - cycleStart));
         }
 
         changeTaskCount(-1);

@@ -12,5 +12,6 @@ namespace mqtt
 
     bool isConnected();
     void publish(const char *topic, const char *payload, bool retain = false);
+    bool publishStatus(const char *status, bool force = false);
     void TaskMqttCode(void *pvParameters);
 }

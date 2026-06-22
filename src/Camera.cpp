@@ -3,6 +3,7 @@
 #include "Config_Camera.h"
 #include "Globals.h"
 #include "Power.h"
+#include "esp_timer.h"
 
 namespace camera
 {
@@ -160,8 +161,8 @@ namespace camera
     {
         changeTaskCount(1);
 
-        const TickType_t activeDelay = pdMS_TO_TICKS(30);
-        const TickType_t idleDelay = pdMS_TO_TICKS(120);
+        const TickType_t activeDelay = pdMS_TO_TICKS(33);
+        const TickType_t idleDelay = pdMS_TO_TICKS(990);
 
         while (true)
         {
@@ -172,14 +173,18 @@ namespace camera
                 break;
             }
 
+            int64_t cycleStart = esp_timer_get_time();
+
             if (power::checkIdle())
             {
+                recordTaskRuntime(TaskMetric::CAMERA_TASK, static_cast<uint32_t>(esp_timer_get_time() - cycleStart));
                 continue;
             }
 
             camera_fb_t *fb = esp_camera_fb_get();
             if (!fb)
             {
+                recordTaskRuntime(TaskMetric::CAMERA_TASK, static_cast<uint32_t>(esp_timer_get_time() - cycleStart));
                 vTaskDelay(pdMS_TO_TICKS(50));
                 continue;
             }
@@ -200,6 +205,7 @@ namespace camera
             }
 
             esp_camera_fb_return(fb);
+            recordTaskRuntime(TaskMetric::CAMERA_TASK, static_cast<uint32_t>(esp_timer_get_time() - cycleStart));
         }
 
         changeTaskCount(-1);
