@@ -42,6 +42,8 @@ namespace mqtt
             snapshotAndResetTaskAverages(averagesUs);
 
             doc["kind"] = "metrics";
+
+            doc["idle"] = power::checkIdle();
             doc["heap_free"] = ESP.getFreeHeap();
             doc["heap_min"] = ESP.getMinFreeHeap();
             doc["heap_max"] = ESP.getMaxAllocHeap();
@@ -190,14 +192,14 @@ namespace mqtt
         enqueue(topic, payload, retain);
     }
 
-    bool publishStatus(const char *status, bool force)
+    bool publishStatus(const char *status)
     {
         if (!isConnected())
         {
             return false;
         }
 
-        if (!force && strcmp(lastStatus, status) == 0)
+        if (strcmp(lastStatus, status) == 0)
         {
             return true;
         }

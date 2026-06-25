@@ -1,5 +1,6 @@
 #include "Globals.h"
 #include "MQTT.h"
+#include "Power.h"
 
 volatile SystemState systemState;
 portMUX_TYPE tasksAliveMux = portMUX_INITIALIZER_UNLOCKED;
@@ -91,23 +92,6 @@ uint64_t getRemainingMs(TickType_t now, uint64_t totalMs, TickType_t startTick)
 {
     uint64_t elapsedMs = (static_cast<uint64_t>(now - startTick) * 1000ULL) / configTICK_RATE_HZ;
     return elapsedMs >= totalMs ? 0 : totalMs - elapsedMs;
-}
-
-const char *stateStr(SystemState state)
-{
-    switch (state)
-    {
-    case SystemState::WORKING:
-        return "WORKING";
-    case SystemState::SLEEPING:
-        return "SLEEPING";
-    case SystemState::WAITING_SERVER:
-        return "WAITING SERVER";
-    case SystemState::FETCHING:
-        return "FETCHING";
-    default:
-        return "UNKNOWN";
-    }
 }
 
 void recordTaskRuntime(TaskMetric task, uint32_t durationUs)

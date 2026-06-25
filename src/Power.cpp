@@ -51,7 +51,7 @@ namespace power
 
         digitalWrite(DISPLAY_ENABLE_PIN, LOW);
         idleFlag = true;
-        mqtt::publishStatus("idle");
+        esp_wifi_set_ps(WIFI_PS_MAX_MODEM);
     }
 
     void exitIdle()
@@ -61,18 +61,9 @@ namespace power
             return;
         }
 
-        idleFlag = false;
         digitalWrite(DISPLAY_ENABLE_PIN, HIGH);
+        idleFlag = false;
         esp_wifi_set_ps(WIFI_PS_NONE);
-
-        if (checkState(SystemState::FETCHING))
-        {
-            mqtt::publishStatus("fetching");
-        }
-        else if (checkState(SystemState::WORKING))
-        {
-            mqtt::publishStatus("working");
-        }
     }
 
     bool isBlockingIdle()

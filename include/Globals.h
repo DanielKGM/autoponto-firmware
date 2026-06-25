@@ -49,7 +49,6 @@ void setState(SystemState newState);
 bool checkState(SystemState state);
 bool checkSleepEvent(TickType_t waitInterval);
 uint64_t getRemainingMs(TickType_t now, uint64_t totalMs, TickType_t startTick);
-const char *stateStr(SystemState state);
 void recordTaskRuntime(TaskMetric task, uint32_t durationUs);
 void snapshotAndResetTaskAverages(uint32_t averagesUs[TASK_METRIC_COUNT]);
 void recordRestPostDuration(uint32_t durationMs);
