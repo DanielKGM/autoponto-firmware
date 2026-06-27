@@ -39,7 +39,8 @@ namespace mqtt
         {
             JsonDocument doc;
             uint32_t averagesUs[TASK_METRIC_COUNT] = {};
-            snapshotAndResetTaskAverages(averagesUs);
+            uint32_t counts[TASK_METRIC_COUNT] = {};
+            snapshotAndResetTaskAverages(averagesUs, counts);
 
             doc["kind"] = "metrics";
 
@@ -59,6 +60,13 @@ namespace mqtt
             avg["network"] = averagesUs[static_cast<uint8_t>(TaskMetric::NETWORK_TASK)];
             avg["camera"] = averagesUs[static_cast<uint8_t>(TaskMetric::CAMERA_TASK)];
             avg["display"] = averagesUs[static_cast<uint8_t>(TaskMetric::DISPLAY_TASK)];
+
+            JsonObject avgCount = doc["avg_count"].to<JsonObject>();
+            avgCount["loop"] = counts[static_cast<uint8_t>(TaskMetric::LOOP_TASK)];
+            avgCount["mqtt"] = counts[static_cast<uint8_t>(TaskMetric::MQTT_TASK)];
+            avgCount["network"] = counts[static_cast<uint8_t>(TaskMetric::NETWORK_TASK)];
+            avgCount["camera"] = counts[static_cast<uint8_t>(TaskMetric::CAMERA_TASK)];
+            avgCount["display"] = counts[static_cast<uint8_t>(TaskMetric::DISPLAY_TASK)];
 
             if (doc.overflowed())
             {

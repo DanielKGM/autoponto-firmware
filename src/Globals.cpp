@@ -108,11 +108,12 @@ void recordTaskRuntime(TaskMetric task, uint32_t durationUs)
     portEXIT_CRITICAL(&metricsMux);
 }
 
-void snapshotAndResetTaskAverages(uint32_t averagesUs[TASK_METRIC_COUNT])
+void snapshotAndResetTaskAverages(uint32_t averagesUs[TASK_METRIC_COUNT], uint32_t counts[TASK_METRIC_COUNT])
 {
     portENTER_CRITICAL(&metricsMux);
     for (uint8_t i = 0; i < TASK_METRIC_COUNT; i++)
     {
+        counts[i] = taskRuntimeStats[i].samples;
         averagesUs[i] = taskRuntimeStats[i].samples > 0
                             ? taskRuntimeStats[i].totalUs / taskRuntimeStats[i].samples
                             : 0;

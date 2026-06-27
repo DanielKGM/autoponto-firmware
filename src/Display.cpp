@@ -367,9 +367,8 @@ namespace display
 
         const TickType_t idleDelay = pdMS_TO_TICKS(990);
         const TickType_t videoDelay = pdMS_TO_TICKS(66); // ~15 FPS
-        const TickType_t msgDelay = pdMS_TO_TICKS(99);
 
-        TickType_t currentDelay = msgDelay;
+        TickType_t currentDelay = videoDelay;
         // only trigger idle actions once
         bool idleTrigger = true;
 
@@ -383,7 +382,7 @@ namespace display
             if (!power::checkIdle() && !idleTrigger)
             {
                 idleTrigger = true;
-                currentDelay = msgDelay;
+                currentDelay = videoDelay;
             }
 
             if (power::checkIdle() && idleTrigger)
@@ -409,7 +408,7 @@ namespace display
                 messageUntil = (msg.duration > 0) ? (now + msg.duration) : 0;
                 fullscreenMessageActive = msg.duration > 0;
                 showText(msg.text, msg.icon);
-                currentDelay = msgDelay;
+                currentDelay = videoDelay;
             }
             else if (checkState(SystemState::WAITING_SERVER) ||
                      (checkState(SystemState::WORKING) && context.msRemaining > 0))
@@ -422,7 +421,7 @@ namespace display
             {
                 fullscreenMessageActive = false;
                 showContextScreen(now);
-                currentDelay = msgDelay;
+                currentDelay = videoDelay;
             }
             else
             {
