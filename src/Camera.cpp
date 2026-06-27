@@ -163,21 +163,21 @@ namespace camera
 
         const TickType_t activeDelay = pdMS_TO_TICKS(33);
         const TickType_t idleDelay = pdMS_TO_TICKS(990);
+        TickType_t periodStartTick = xTaskGetTickCount();
 
         while (true)
         {
             TickType_t delay = power::checkIdle() ? idleDelay : activeDelay;
-
-            if (checkSleepEvent(delay))
-            {
-                break;
-            }
 
             int64_t cycleStart = esp_timer_get_time();
 
             if (power::checkIdle())
             {
                 recordTaskRuntime(TaskMetric::CAMERA_TASK, static_cast<uint32_t>(esp_timer_get_time() - cycleStart));
+                if (waitForNextPeriodOrSleep(periodStartTick, delay))
+                {
+                    break;
+                }
                 continue;
             }
 
@@ -186,6 +186,10 @@ namespace camera
             {
                 recordTaskRuntime(TaskMetric::CAMERA_TASK, static_cast<uint32_t>(esp_timer_get_time() - cycleStart));
                 vTaskDelay(pdMS_TO_TICKS(50));
+                if (waitForNextPeriodOrSleep(periodStartTick, delay))
+                {
+                    break;
+                }
                 continue;
             }
 
@@ -206,6 +210,11 @@ namespace camera
 
             esp_camera_fb_return(fb);
             recordTaskRuntime(TaskMetric::CAMERA_TASK, static_cast<uint32_t>(esp_timer_get_time() - cycleStart));
+
+            if (waitForNextPeriodOrSleep(periodStartTick, delay))
+            {
+                break;
+            }
         }
 
         changeTaskCount(-1);

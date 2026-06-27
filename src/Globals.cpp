@@ -88,6 +88,17 @@ bool checkSleepEvent(TickType_t waitInterval)
            EVT_SLEEP;
 }
 
+bool waitForNextPeriodOrSleep(TickType_t &periodStartTick, TickType_t period)
+{
+    TickType_t now = xTaskGetTickCount();
+    TickType_t elapsed = now - periodStartTick;
+    TickType_t waitInterval = elapsed < period ? period - elapsed : 1;
+    bool sleepRequested = checkSleepEvent(waitInterval);
+
+    periodStartTick = xTaskGetTickCount();
+    return sleepRequested;
+}
+
 uint64_t getRemainingMs(TickType_t now, uint64_t totalMs, TickType_t startTick)
 {
     uint64_t elapsedMs = (static_cast<uint64_t>(now - startTick) * 1000ULL) / configTICK_RATE_HZ;

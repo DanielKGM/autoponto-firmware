@@ -214,15 +214,10 @@ namespace network
         TickType_t lastFetchAttempt = 0;
 
         TickType_t lastReqTick = 0;
+        TickType_t periodStartTick = xTaskGetTickCount();
 
         while (true)
         {
-
-            if (checkSleepEvent(delay))
-            {
-                break;
-            }
-
             int64_t cycleStart = esp_timer_get_time();
             TickType_t now = xTaskGetTickCount();
 
@@ -236,6 +231,10 @@ namespace network
                 }
 
                 recordTaskRuntime(TaskMetric::NETWORK_TASK, static_cast<uint32_t>(esp_timer_get_time() - cycleStart));
+                if (waitForNextPeriodOrSleep(periodStartTick, delay))
+                {
+                    break;
+                }
                 continue;
             }
 
@@ -268,6 +267,11 @@ namespace network
             }
 
             recordTaskRuntime(TaskMetric::NETWORK_TASK, static_cast<uint32_t>(esp_timer_get_time() - cycleStart));
+
+            if (waitForNextPeriodOrSleep(periodStartTick, delay))
+            {
+                break;
+            }
         }
 
         changeTaskCount(-1);

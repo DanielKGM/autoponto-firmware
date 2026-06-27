@@ -366,9 +366,10 @@ namespace display
         TickType_t messageUntil = 0;
 
         const TickType_t idleDelay = pdMS_TO_TICKS(990);
-        const TickType_t videoDelay = pdMS_TO_TICKS(66); // ~15 FPS
+        const TickType_t videoDelay = pdMS_TO_TICKS(99); // ~10 FPS
 
         TickType_t currentDelay = videoDelay;
+        TickType_t periodStartTick = xTaskGetTickCount();
         // only trigger idle actions once
         bool idleTrigger = true;
 
@@ -430,7 +431,7 @@ namespace display
 
             recordTaskRuntime(TaskMetric::DISPLAY_TASK, static_cast<uint32_t>(esp_timer_get_time() - cycleStart));
 
-            if (checkSleepEvent(currentDelay))
+            if (waitForNextPeriodOrSleep(periodStartTick, currentDelay))
             {
                 break;
             }

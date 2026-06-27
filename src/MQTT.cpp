@@ -234,11 +234,12 @@ namespace mqtt
 
         const TickType_t delay = pdMS_TO_TICKS(99);
         const TickType_t metricsInterval = pdMS_TO_TICKS(MQTT_LOG_INTERVAL_MS);
+        TickType_t periodStartTick = xTaskGetTickCount();
 
         // wait boot and first connection
         while (checkState(SystemState::BOOTING) || checkState(SystemState::NET_OFF))
         {
-            if (checkSleepEvent(delay))
+            if (waitForNextPeriodOrSleep(periodStartTick, delay))
             {
                 break;
             }
@@ -248,18 +249,17 @@ namespace mqtt
 
         while (true)
         {
-            if (checkSleepEvent(delay))
-            {
-                drainQueue();
-                break;
-            }
-
             int64_t cycleStart = esp_timer_get_time();
 
             if (checkState(SystemState::NET_OFF))
             {
                 mqtt.loop();
                 recordTaskRuntime(TaskMetric::MQTT_TASK, static_cast<uint32_t>(esp_timer_get_time() - cycleStart));
+                if (waitForNextPeriodOrSleep(periodStartTick, delay))
+                {
+                    drainQueue();
+                    break;
+                }
                 continue;
             }
 
@@ -275,6 +275,11 @@ namespace mqtt
 
                 mqtt.loop();
                 recordTaskRuntime(TaskMetric::MQTT_TASK, static_cast<uint32_t>(esp_timer_get_time() - cycleStart));
+                if (waitForNextPeriodOrSleep(periodStartTick, delay))
+                {
+                    drainQueue();
+                    break;
+                }
                 continue;
             }
 
@@ -289,6 +294,12 @@ namespace mqtt
 
             mqtt.loop();
             recordTaskRuntime(TaskMetric::MQTT_TASK, static_cast<uint32_t>(esp_timer_get_time() - cycleStart));
+
+            if (waitForNextPeriodOrSleep(periodStartTick, delay))
+            {
+                drainQueue();
+                break;
+            }
         }
 
         changeTaskCount(-1);

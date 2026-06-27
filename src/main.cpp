@@ -38,7 +38,7 @@ void setup()
         "TaskDisplay",
         16384,
         nullptr,
-        3,
+        2,
         &TaskDisplay,
         APP_CPU_NUM);
 
@@ -72,14 +72,15 @@ void setup()
         "TaskMqtt",
         8192,
         nullptr,
-        1,
+        2,
         &TaskMqtt,
-        APP_CPU_NUM);
+        PRO_CPU_NUM);
 }
 
 void loop()
 {
     using namespace power;
+    static TickType_t periodStartTick = xTaskGetTickCount();
     int64_t cycleStart = esp_timer_get_time();
     TickType_t now = xTaskGetTickCount();
 
@@ -120,7 +121,7 @@ void loop()
 
     recordTaskRuntime(TaskMetric::LOOP_TASK, static_cast<uint32_t>(esp_timer_get_time() - cycleStart));
 
-    if (checkSleepEvent(loopDelay) && checkTaskCount() == 0 && checkState(SystemState::SLEEPING))
+    if (waitForNextPeriodOrSleep(periodStartTick, loopDelay) && checkTaskCount() == 0 && checkState(SystemState::SLEEPING))
     {
         sleep();
     }
