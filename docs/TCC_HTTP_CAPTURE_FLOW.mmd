@@ -1,0 +1,45 @@
+---
+config:
+  layout: elk
+  theme: redux
+  look: neo
+---
+flowchart TD
+  A["TaskNetwork loop"] --> B{"WiFi conectado?"}
+  B -- nao --> C["setState NET_OFF"]
+  C --> D["Tentar reconectar WiFi"]
+  D --> E{"Reconectou?"}
+  E -- sim --> F["setState MQTT_OFF"]
+  E -- nao --> A
+
+  B -- sim --> G{"Estado FETCHING?"}
+  G -- sim --> H["GET REST_FETCH_PATH"]
+  H --> I{"HTTP 200 e JSON valido?"}
+  I -- nao --> J["Mensagem de erro no display"]
+  J --> A
+  I -- sim --> K{"msForNext == 0 e msRemaining == 0?"}
+  K -- sim --> L["clearContext + mensagem sem turma"]
+  L --> A
+  K -- nao --> M["Atualizar AttendanceContext e fetchTick"]
+  M --> N["setState WORKING"]
+  N --> A
+
+  G -- nao --> O{"Estado WAITING_SERVER e timeout?"}
+  O -- sim --> P["setState WORKING"]
+  P --> A
+  O -- nao --> Q{"Pode enviar frame?"}
+  Q -- nao --> A
+  Q -- sim --> R["Solicitar snapshot para TaskCamera"]
+  R --> S{"Snapshot disponivel?"}
+  S -- nao --> T["Mensagem falha ao capturar frame"]
+  T --> A
+  S -- sim --> U["POST REST_POST_PATH com JPEG cru"]
+  U --> V{"HTTP 200?"}
+  V -- nao --> W["Retry unico apos 200 ms"]
+  W --> X{"HTTP 200 no retry?"}
+  X -- nao --> Y["Registrar post_max_ms, liberar frame, erro no display"]
+  Y --> A
+  X -- sim --> Z["Registrar post_max_ms e liberar frame"]
+  V -- sim --> Z
+  Z --> AA["setState WAITING_SERVER"]
+  AA --> AB["Aguardar resposta MQTT auth ou timeout"]

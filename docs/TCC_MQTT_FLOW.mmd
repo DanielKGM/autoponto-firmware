@@ -1,0 +1,41 @@
+---
+config:
+  layout: elk
+  theme: redux
+  look: neo
+---
+flowchart LR
+  subgraph Firmware["ESP32-CAM firmware"]
+    A["TaskMqtt"]
+    B["setState"]
+    C["loop PIR"]
+    D["publishSystemStats"]
+    E["mqttCallback"]
+    F["Display + feedback positivo"]
+    G["clearContext"]
+  end
+
+  subgraph Broker["Broker MQTT"]
+    LOG["log/{deviceId}"]
+    CMD["cmd/{deviceId}"]
+  end
+
+  A --> H{"WiFi disponivel?"}
+  H -- nao --> A
+  H -- sim --> I["Conectar MQTT com LWT retained"]
+  I --> LOG
+  I --> J["Subscribe cmd/{deviceId}"]
+  J --> CMD
+
+  B -->|status working/fetching/sleep retained| LOG
+  I -->|LWT status offline retained| LOG
+  D -->|kind metrics a cada MQTT_LOG_INTERVAL_MS| LOG
+  C -->|kind pir presenca true| LOG
+
+  CMD -->|auth true/false + msg| E
+  E -->|se WAITING_SERVER| B
+  E -->|auth true e nao idle| F
+
+  CMD -->|fetch true| E
+  E --> G
+  G -->|setState FETCHING| B

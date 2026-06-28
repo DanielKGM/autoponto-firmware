@@ -4,25 +4,39 @@ config:
   theme: redux
   look: neo
 ---
-stateDiagram
-  direction BT
-  [*] --> boot
-  boot --> net_off:System configured / Network "Task" created
-  net_off --> mqtt_off:Connects to Wi-Fi network
-  mqtt_off --> net_off:Wi-Fi disconnected
-  mqtt_off --> fetching:Connects to "Broker"
-  fetching --> working:Update MQTT context / IDLE = FALSE
-  working --> fetching:Needs to update context
-  working --> waiting:Makes HTTP request
-  waiting --> working:REST response/TIMEOUT / From WORKING
-  sleep --> boot:Sleeping / User detected
-  boot --> configuring:GPIO4 high level
-  configuring --> boot:BLE EXIT command or TIMEOUT
-  working --> mqtt_off:"Broker" disconnected
-  waiting --> mqtt_off:"Broker" disconnected
-  working --> net_off:Wi-Fi disconnected
-  waiting --> net_off:Wi-Fi disconnected
-  ics --> sleep:No user detected / PIR Sensor
-  net_off:net off
-  mqtt_off:mqtt off
-  ics:idle-capable states
+stateDiagram-v2
+  direction LR
+
+  [*] --> BOOTING: setup()
+  BOOTING --> NET_OFF: TaskNetwork inicia
+
+  NET_OFF --> MQTT_OFF: WiFi conectado
+  NET_OFF --> NET_OFF: WiFi indisponivel / retry
+
+  MQTT_OFF --> FETCHING: MQTT conectado + subscribe cmd
+  MQTT_OFF --> NET_OFF: WiFi caiu
+  MQTT_OFF --> MQTT_OFF: broker indisponivel / retry
+
+  FETCHING --> WORKING: GET contexto valido
+  FETCHING --> FETCHING: REST falha ou sem turma / retry
+  FETCHING --> MQTT_OFF: MQTT caiu
+  FETCHING --> NET_OFF: WiFi caiu
+
+  WORKING --> WAITING_SERVER: POST frame JPEG OK
+  WORKING --> FETCHING: contexto expirou ou comando fetch
+  WORKING --> MQTT_OFF: MQTT caiu
+  WORKING --> NET_OFF: WiFi caiu
+
+  WAITING_SERVER --> WORKING: comando auth ou timeout
+  WAITING_SERVER --> FETCHING: comando fetch
+  WAITING_SERVER --> MQTT_OFF: MQTT caiu
+  WAITING_SERVER --> NET_OFF: WiFi caiu
+
+  NET_OFF --> SLEEPING: idle + timeout PIR
+  MQTT_OFF --> SLEEPING: idle + timeout PIR
+  FETCHING --> SLEEPING: idle + timeout PIR
+  WORKING --> SLEEPING: idle + timeout PIR
+  WAITING_SERVER --> SLEEPING: idle + timeout PIR
+
+  SLEEPING --> [*]: esp_deep_sleep_start()
+  SLEEPING --> BOOTING: wake por PIR reinicia o ESP32

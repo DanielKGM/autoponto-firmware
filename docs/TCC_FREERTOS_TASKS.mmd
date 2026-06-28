@@ -1,0 +1,56 @@
+---
+config:
+  layout: elk
+  theme: redux
+  look: neo
+---
+flowchart TB
+  subgraph APP["APP_CPU_NUM"]
+    TD["TaskDisplay<br/>prio 2 stack 16384<br/>TFT, mensagens e preview"]
+    TC["TaskCamera<br/>prio 3 stack 8192<br/>captura JPEG e filas"]
+  end
+
+  subgraph PRO["PRO_CPU_NUM"]
+    TN["TaskNetwork<br/>prio 2 stack 16384<br/>WiFi, GET contexto e POST frame"]
+    TM["TaskMqtt<br/>prio 2 stack 8192<br/>broker, comandos e telemetria"]
+  end
+
+  subgraph ArduinoLoop["Arduino loop"]
+    L["loop<br/>expira contexto, PIR, idle, sleep e feedback"]
+  end
+
+  subgraph Shared["Recursos compartilhados"]
+    S1["SystemState"]
+    S2["AttendanceContext"]
+    S3["EVT_SLEEP event group"]
+    S4["Metricas por tarefa"]
+  end
+
+  TC -->|previewQueue| TD
+  TN -->|requestSnapshot| TC
+  TC -->|snapshotQueue| TN
+  TN -->|mensagens| TD
+  TM -->|auth/fetch commands| TD
+  TM -->|auth/fetch commands| S1
+  L -->|PIR event| TM
+  L -->|idle/sleep| S1
+
+  TD <--> S1
+  TN <--> S1
+  TM <--> S1
+  L <--> S1
+
+  TD <--> S2
+  TN <--> S2
+  TM --> S4
+  TD --> S4
+  TC --> S4
+  TN --> S4
+  L --> S4
+
+  L -->|triggerSleepEvent| S3
+  S3 -->|encerra loop| TD
+  S3 -->|encerra loop| TC
+  S3 -->|encerra loop| TN
+  S3 -->|encerra loop| TM
+  L -->|apos tasks finalizarem| DS["esp_deep_sleep_start"]
