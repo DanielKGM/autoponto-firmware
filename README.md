@@ -438,7 +438,7 @@ A cada `MQTT_LOG_INTERVAL_MS`, publica `kind=metrics` sem <i>retain</i>:
 
 ## Licença e Citação
 
-<p align="justify">Este projeto é distribuído sob a licença (...). Para mais informações, consulte o arquivo <b>LICENSE.md</b> ou a <b>aba de licença</b> do repositório.<br/><br/>Caso utilize este projeto em trabalhos acadêmicos ou científicos, utilize a seguinte referência BibTeX:</p>
+<p align="justify">Este projeto é protegido por direitos autorais (<i>All Rights Reserved</i>). A cópia, distribuição, uso comercial ou modificação não são permitidas sem autorização prévia. Para mais informações, consulte o arquivo <b>LICENSE.md</b> ou a <b>aba de licença</b> do repositório.<br/><br/>Caso utilize este projeto em trabalhos acadêmicos ou científicos, utilize a seguinte referência BibTeX:</p>
 
 ```Latex
 @software{AutoPonto_2026,
