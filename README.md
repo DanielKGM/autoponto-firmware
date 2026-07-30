@@ -460,8 +460,8 @@ A cada `MQTT_LOG_INTERVAL_MS`, publica `kind=metrics` sem <i>retain</i>:
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
 
-[doi-shield]: https://img.shields.io/badge/DOI-18282893-black?style=for-the-badge
-[doi-url]: https://doi.org/10.5281/zenodo.18282892
+[doi-shield]: https://img.shields.io/badge/DOI-10.5281/zenodo.21705236-black?style=for-the-badge
+[doi-url]: https://doi.org/10.5281/zenodo.21705236
 [contributors-shield]: https://img.shields.io/github/contributors/DanielKGM/heartcam.svg?style=for-the-badge
 [contributors-url]: https://github.com/DanielKGM/heartcam/graphs/contributors
 [forks-shield]: https://img.shields.io/github/forks/DanielKGM/heartcam.svg?style=for-the-badge
