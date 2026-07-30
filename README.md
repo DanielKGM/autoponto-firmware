@@ -340,8 +340,6 @@ Resposta esperada:
 }
 ```
 
-<p align="right">(<a href="#topo">voltar ao topo</a>)</p>
-
 ### Enviar <i>Frame</i>
 
 Requisição:
@@ -376,8 +374,6 @@ dele, os tópicos são:
 
 - comandos: `cmd/{deviceId}`
 - <i>logs</i>/<i>status</i>/telemetria: `log/{deviceId}`
-
-<p align="right">(<a href="#topo">voltar ao topo</a>)</p>
 
 ### <i>Status</i>
 
