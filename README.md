@@ -5,13 +5,12 @@
 [![Forks][forks-shield]][forks-url]
 [![Stargazers][stars-shield]][stars-url]
 [![Issues][issues-shield]][issues-url]
-[![Unlicense License][license-shield]][license-url]
 [![LinkedIn][linkedin-shield]][linkedin-url]
 
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
-  <a href="https://github.com/DanielKGM/heartcam">
+  <a href="https://github.com/DanielKGM/autoponto-firmware">
     <img src="assets/logo.png" alt="Logo" height="70">
   </a>
 
@@ -428,7 +427,7 @@ A cada `MQTT_LOG_INTERVAL_MS`, publica `kind=metrics` sem <i>retain</i>:
 
 ## Contato
 
-[Daniel Galdez (LINKEDIN)](https://www.linkedin.com/in/daniel-campos-galdez-monteiro/) &middot; <a href="mailto:danielgaldez10@hotmail.com?subject=HEARTCAM&body=Olá! Vim do repositório HEARTCAM e ...">danielgaldez10@hotmail.com</a>
+[Daniel Galdez (LINKEDIN)](https://www.linkedin.com/in/daniel-campos-galdez-monteiro/) &middot; <a href="mailto:danielgaldez10@hotmail.com?subject=AUTOPONTO&body=Olá! Vim do repositório AUTOPONTO e ...">danielgaldez10@hotmail.com</a>
 
 <p align="right">(<a href="#topo">voltar ao topo</a>)</p>
 
@@ -462,16 +461,16 @@ A cada `MQTT_LOG_INTERVAL_MS`, publica `kind=metrics` sem <i>retain</i>:
 
 [doi-shield]: https://img.shields.io/badge/DOI-10.5281/zenodo.21705236-black?style=for-the-badge
 [doi-url]: https://doi.org/10.5281/zenodo.21705236
-[contributors-shield]: https://img.shields.io/github/contributors/DanielKGM/heartcam.svg?style=for-the-badge
-[contributors-url]: https://github.com/DanielKGM/heartcam/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/DanielKGM/heartcam.svg?style=for-the-badge
-[forks-url]: https://github.com/DanielKGM/heartcam/network/members
-[stars-shield]: https://img.shields.io/github/stars/DanielKGM/heartcam.svg?style=for-the-badge
-[stars-url]: https://github.com/DanielKGM/heartcam/stargazers
-[issues-shield]: https://img.shields.io/github/issues/DanielKGM/heartcam.svg?style=for-the-badge
-[issues-url]: https://github.com/DanielKGM/heartcam/issues
-[license-shield]: https://img.shields.io/github/license/DanielKGM/heartcam.svg?style=for-the-badge
-[license-url]: https://github.com/DanielKGM/heartcam/blob/main/LICENSE.md
+[contributors-shield]: https://img.shields.io/github/contributors/DanielKGM/autoponto-firmware.svg?style=for-the-badge
+[contributors-url]: https://github.com/DanielKGM/autoponto-firmware/graphs/contributors
+[forks-shield]: https://img.shields.io/github/forks/DanielKGM/autoponto-firmware.svg?style=for-the-badge
+[forks-url]: https://github.com/DanielKGM/autoponto-firmware/network/members
+[stars-shield]: https://img.shields.io/github/stars/DanielKGM/autoponto-firmware.svg?style=for-the-badge
+[stars-url]: https://github.com/DanielKGM/autoponto-firmware/stargazers
+[issues-shield]: https://img.shields.io/github/issues/DanielKGM/autoponto-firmware.svg?style=for-the-badge
+[issues-url]: https://github.com/DanielKGM/autoponto-firmware/issues
+[license-shield]: https://img.shields.io/github/license/DanielKGM/autoponto-firmware.svg?style=for-the-badge
+[license-url]: https://github.com/DanielKGM/autoponto-firmware/blob/main/LICENSE.md
 [linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
 [linkedin-url]: https://www.linkedin.com/in/daniel-campos-galdez-monteiro/
 
