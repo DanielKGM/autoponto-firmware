@@ -43,6 +43,8 @@
     <li><a href="#fluxo-de-execução">Fluxo de Execução</a></li>
     <li><a href="#estados-do-dispositivo">Estados do Dispositivo</a></li>
     <li><a href="#dependências-do-firmware">Dependências do <i>Firmware</i></a></li>
+    <li><a href="#placa-de-circuito-impresso">Placa de Circuito Impresso</a></li>
+    <li><a href="#caixa-de-montagem">Caixa de Montagem</a></li>
     <li><a href="#fotos-em-funcionamento">Fotos em Funcionamento</a></li>
     <li><a href="#configuração-local">Configuração Local</a></li>
     <li><a href="#mapa-de-arquivos">Mapa de Arquivos</a></li>
@@ -191,6 +193,26 @@ A figura abaixo ilustra a máquina de estados do dispositivo embarcado:
 | [bitbank2/JPEGDEC](https://github.com/bitbank2/JPEGDEC)             | Decodificador <i>JPEG</i> otimizado para microcontroladores (escrito em C/C++), permitindo carregar e exibir imagens em <i>displays</i> com uso eficiente de memória.                                      |
 | [bblanchon/ArduinoJson](https://github.com/bblanchon/ArduinoJson)   | Biblioteca de C++ eficiente e poderosa para serialização e desserialização de dados no formato <i>JSON</i>, muito utilizada em projetos Arduino e <i>IoT</i>.                                              |
 | [knolleary/PubSubClient](https://github.com/knolleary/pubsubclient) | Biblioteca para Arduino que fornece um cliente para o protocolo <i>MQTT</i> (<i>Message Queuing Telemetry Transport</i>), permitindo publicar e assinar tópicos para comunicação <i>IoT</i> em tempo real. |
+
+<p align="right">(<a href="#topo">voltar ao topo</a>)</p>
+
+## Placa de Circuito Impresso
+
+Os circuitos eletrônicos do dispositivo são desenhados em uma placa de circuito impresso (PCB). Abaixo está o modelo 3D da PCB.
+
+- [Clique neste LINK para visualizar em 3D](https://3dviewer.net/index.html#model=https://raw.githubusercontent.com/DanielKGM/autoponto-firmware/refs/heads/main/assets/pcb/autoponto_circuit.wrl) &middot; [Arquivo Gerber](https://github.com/DanielKGM/autoponto-firmware/tree/main/assets/pcb)
+
+![Placa de Circuito Impresso](assets/pcb/render_3d.png)
+
+<p align="right">(<a href="#topo">voltar ao topo</a>)</p>
+
+## Caixa de Montagem
+
+Para testes em campo, os componentes eletrônicos e PCB precisam ser protegidos por uma caixa de montagem. A figura abaixo mostra o modelo 3D da caixa, que pode ser impresso em <i>PLA</i> ou outro material resistente.
+
+- Clique nos LINKS a seguir para visualizar os arquivos de impressão: [BASE](https://3dviewer.net/index.html#model=https://raw.githubusercontent.com/DanielKGM/autoponto-firmware/refs/heads/main/assets/modelos_3d/ap_base.stl) &middot; [TAMPA](https://3dviewer.net/index.html#model=https://raw.githubusercontent.com/DanielKGM/autoponto-firmware/refs/heads/main/assets/modelos_3d/ap_tampa.stl) &middot; [TAMPA (SEM LOGO)](https://3dviewer.net/index.html#model=https://raw.githubusercontent.com/DanielKGM/autoponto-firmware/refs/heads/main/assets/modelos_3d/ap_tampa_semlogo.stl)
+
+![Caixa de Montagem](assets/modelos_3d/canva.png)
 
 <p align="right">(<a href="#topo">voltar ao topo</a>)</p>
 
